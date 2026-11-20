@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:viewModels="clr-namespace:Qcm_app.ViewModels"
+    x:Class="Qcm_app.Views.CategoriesPage"
+    x:DataType="viewModels:CategoriesViewModel"
+    Title="Categories">
+
+	<ScrollView>
+		<VerticalStackLayout Padding="24" Spacing="18">
+
+			<Label
+                Text="Category"
+                FontSize="16"
+                FontAttributes="Bold" />
+			<Picker
+                ItemsSource="{Binding Categories}"
+                SelectedItem="{Binding SelectedCategory}" />
+
+			<Label
+                Text="Difficulty"
+                FontSize="16"
+                FontAttributes="Bold" />
+			<Picker
+                ItemsSource="{Binding DifficultyOptions}"
+                SelectedItem="{Binding SelectedDifficulty}" />
+
+			<HorizontalStackLayout Spacing="12" Margin="0,10,0,0">
+				<Switch IsToggled="{Binding UseAiGeneration}" />
+				<VerticalStackLayout>
+					<Label
+                        Text="Generate questions with AI"
+                        FontAttributes="Bold" />
+					<Label
+                        Text="Uses Gemini to create fresh questions. Falls back to the local bank if offline."
+                        FontSize="12"
+                        TextColor="Gray" />
+				</VerticalStackLayout>
+			</HorizontalStackLayout>
+
+			<Button
+                Text="Start Quiz"
+                Command="{Binding StartCommand}"
+                HeightRequest="55"
+                FontSize="18"
+                Margin="0,20,0,0" />
+
+		</VerticalStackLayout>
+	</ScrollView>
+
+</ContentPage>

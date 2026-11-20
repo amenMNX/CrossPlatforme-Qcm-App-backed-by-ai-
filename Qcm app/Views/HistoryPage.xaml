@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:viewModels="clr-namespace:Qcm_app.ViewModels"
+    xmlns:data="clr-namespace:Qcm_app.Data"
+    x:Class="Qcm_app.Views.HistoryPage"
+    x:DataType="viewModels:HistoryViewModel"
+    Title="History">
+
+	<Grid Padding="24">
+
+		<Label
+            Text="No games played yet. Play a quiz to see it here!"
+            FontSize="16"
+            HorizontalOptions="Center"
+            VerticalOptions="Center"
+            IsVisible="{Binding IsEmpty}" />
+
+		<CollectionView
+            ItemsSource="{Binding Sessions}"
+            IsVisible="{Binding IsEmpty, Converter={StaticResource InvertedBoolConverter}}">
+			<CollectionView.ItemTemplate>
+				<DataTemplate x:DataType="data:GameSession">
+					<Grid Padding="0,10" ColumnDefinitions="*,Auto">
+						<VerticalStackLayout Grid.Column="0">
+							<Label Text="{Binding Category}" FontAttributes="Bold" FontSize="16" />
+							<Label FontSize="13" TextColor="Gray">
+								<Label.Text>
+									<MultiBinding StringFormat="{}{0:g} · {1}">
+										<Binding Path="Date" />
+										<Binding Path="Difficulty" />
+									</MultiBinding>
+								</Label.Text>
+							</Label>
+						</VerticalStackLayout>
+						<Label
+                            Grid.Column="1"
+                            FontSize="18"
+                            FontAttributes="Bold"
+                            VerticalOptions="Center">
+							<Label.Text>
+								<MultiBinding StringFormat="{}{0}/{1}">
+									<Binding Path="Score" />
+									<Binding Path="TotalQuestions" />
+								</MultiBinding>
+							</Label.Text>
+						</Label>
+					</Grid>
+				</DataTemplate>
+			</CollectionView.ItemTemplate>
+		</CollectionView>
+
+	</Grid>
+
+</ContentPage>

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:viewModels="clr-namespace:Qcm_app.ViewModels"
+    x:Class="Qcm_app.MainPage"
+    x:DataType="viewModels:HomeViewModel"
+    Title="Quiz App">
+
+	<ScrollView>
+		<VerticalStackLayout
+            Padding="30"
+            Spacing="20"
+            VerticalOptions="Center">
+
+			<Label
+                Text="Quiz App"
+                FontSize="36"
+                FontAttributes="Bold"
+                HorizontalOptions="Center" />
+
+			<Label
+                Text="Test your knowledge with fun quizzes."
+                FontSize="18"
+                HorizontalTextAlignment="Center" />
+
+			<Button
+                Text="Start Quiz"
+                Command="{Binding StartQuizCommand}"
+                HeightRequest="55"
+                FontSize="18" />
+
+			<Button
+                Text="History"
+                Command="{Binding ViewHistoryCommand}"
+                HeightRequest="50"
+                FontSize="16" />
+
+			<Button
+                Text="Stats"
+                Command="{Binding ViewStatsCommand}"
+                HeightRequest="50"
+                FontSize="16" />
+
+		</VerticalStackLayout>
+	</ScrollView>
+
+</ContentPage>

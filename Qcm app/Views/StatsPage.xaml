@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:viewModels="clr-namespace:Qcm_app.ViewModels"
+    x:Class="Qcm_app.Views.StatsPage"
+    x:DataType="viewModels:StatsViewModel"
+    Title="Stats">
+
+	<VerticalStackLayout Padding="30" Spacing="24" VerticalOptions="Center">
+
+		<Label
+            Text="No stats yet. Play a few quizzes first!"
+            FontSize="16"
+            HorizontalOptions="Center"
+            IsVisible="{Binding HasNoData}" />
+
+		<Grid IsVisible="{Binding HasNoData, Converter={StaticResource InvertedBoolConverter}}"
+              RowDefinitions="Auto,Auto,Auto" RowSpacing="20">
+
+			<VerticalStackLayout Grid.Row="0" HorizontalOptions="Center">
+				<Label Text="Games played" FontSize="14" TextColor="Gray" HorizontalOptions="Center" />
+				<Label Text="{Binding GamesPlayed}" FontSize="32" FontAttributes="Bold" HorizontalOptions="Center" />
+			</VerticalStackLayout>
+
+			<VerticalStackLayout Grid.Row="1" HorizontalOptions="Center">
+				<Label Text="Best score" FontSize="14" TextColor="Gray" HorizontalOptions="Center" />
+				<Label Text="{Binding BestScoreText}" FontSize="32" FontAttributes="Bold" HorizontalOptions="Center" />
+			</VerticalStackLayout>
+
+			<VerticalStackLayout Grid.Row="2" HorizontalOptions="Center">
+				<Label Text="Average score" FontSize="14" TextColor="Gray" HorizontalOptions="Center" />
+				<Label Text="{Binding AverageScoreText}" FontSize="32" FontAttributes="Bold" HorizontalOptions="Center" />
+			</VerticalStackLayout>
+
+		</Grid>
+
+	</VerticalStackLayout>
+
+</ContentPage>
