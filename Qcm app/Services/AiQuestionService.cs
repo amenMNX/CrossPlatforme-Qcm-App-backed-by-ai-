@@ -22,10 +22,8 @@ namespace Qcm_app.Services;
 /// </summary>
 public class AiQuestionService : IQuestionProvider
 {
-	// NOTE for students / reviewers:
-	// This is a free-tier Gemini API key placeholder. Get your own key at
-	// https://aistudio.google.com/apikey and set it via GeminiApiKeyProvider
-	// (see Services/GeminiApiKeyProvider.cs) rather than committing it to source control.
+	// Configure the key through the GEMINI_API_KEY environment variable.
+	// Never commit API keys to source control.
 	private const string GeminiModel = "gemini-2.0-flash";
 
 	private readonly HttpClient httpClient;
@@ -58,7 +56,10 @@ public class AiQuestionService : IQuestionProvider
 				apiKey, category, difficulty, count, cancellationToken);
 
 			if (generated is { Count: > 0 })
+			{
+				await fallbackService.AddGeneratedQuestionsAsync(generated, cancellationToken);
 				return generated;
+			}
 
 			System.Diagnostics.Debug.WriteLine(
 				"AI generation returned no questions. Falling back to local bank.");

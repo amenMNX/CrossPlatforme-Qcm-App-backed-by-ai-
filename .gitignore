@@ -360,4 +360,8 @@ MigrationBackup/
 .ionide/
 
 # Fody - auto-generated XML schema
+
+# Local quiz history database
+Qcm app/quiz_history.db3
+
 FodyWeavers.xsd

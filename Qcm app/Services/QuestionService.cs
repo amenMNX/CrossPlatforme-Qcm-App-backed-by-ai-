@@ -15,6 +15,13 @@ namespace Qcm_app.Services;
 public class QuestionService : IQuestionProvider
 {
 	private List<Question>? cachedQuestions;
+	private readonly SemaphoreSlim questionsLock = new(1, 1);
+	private static readonly JsonSerializerOptions JsonOptions = new()
+	{
+		PropertyNameCaseInsensitive = true,
+		WriteIndented = true,
+		Converters = { new JsonStringEnumConverter() }
+	};
 
 	public async Task<List<Question>> GetQuestionsAsync(
 		string? category,
@@ -64,29 +71,57 @@ public class QuestionService : IQuestionProvider
 			.ToList();
 	}
 
-	private async Task<List<Question>> LoadAllQuestionsAsync()
+	public async Task AddGeneratedQuestionsAsync(
+		IReadOnlyCollection<Question> questions,
+		CancellationToken cancellationToken = default)
 	{
-		if (cachedQuestions is not null)
-			return cachedQuestions;
+		if (questions.Count == 0)
+			return;
 
+		await questionsLock.WaitAsync(cancellationToken);
 		try
 		{
-			using Stream stream =
-				await FileSystem.OpenAppPackageFileAsync("questions.json");
+			cachedQuestions ??= await LoadQuestionsFromStorageAsync();
 
-			var questions =
-				await JsonSerializer.DeserializeAsync<List<Question>>(
-					stream,
-					new JsonSerializerOptions
-					{
-						PropertyNameCaseInsensitive = true,
-						Converters =
-						{
-							new JsonStringEnumConverter()
-						}
-					});
+			var knownIds = cachedQuestions
+				.Select(question => question.Id)
+				.ToHashSet(StringComparer.Ordinal);
+			var additions = questions
+				.Where(question => knownIds.Add(question.Id))
+				.ToList();
 
-			cachedQuestions = questions ?? new List<Question>();
+			if (additions.Count == 0)
+				return;
+
+			var updatedQuestions = cachedQuestions.Concat(additions).ToList();
+			var path = GetWritableQuestionsPath();
+			var temporaryPath = $"{path}.{Guid.NewGuid():N}.tmp";
+
+			try
+			{
+				string json = JsonSerializer.Serialize(updatedQuestions, JsonOptions);
+				await File.WriteAllTextAsync(temporaryPath, json, cancellationToken);
+				File.Move(temporaryPath, path, overwrite: true);
+				cachedQuestions = updatedQuestions;
+			}
+			finally
+			{
+				if (File.Exists(temporaryPath))
+					File.Delete(temporaryPath);
+			}
+		}
+		finally
+		{
+			questionsLock.Release();
+		}
+	}
+
+	private async Task<List<Question>> LoadAllQuestionsAsync()
+	{
+		await questionsLock.WaitAsync();
+		try
+		{
+			cachedQuestions ??= await LoadQuestionsFromStorageAsync();
 		}
 		catch (Exception exception)
 		{
@@ -95,9 +130,34 @@ public class QuestionService : IQuestionProvider
 
 			cachedQuestions = new List<Question>();
 		}
+		finally
+		{
+			questionsLock.Release();
+		}
 
 		return cachedQuestions;
 	}
+
+	private static async Task<List<Question>> LoadQuestionsFromStorageAsync()
+	{
+		Directory.CreateDirectory(FileSystem.AppDataDirectory);
+		string path = GetWritableQuestionsPath();
+
+		if (!File.Exists(path))
+		{
+			await using Stream packagedQuestions =
+				await FileSystem.OpenAppPackageFileAsync("questions.json");
+			await using var localQuestions = File.Create(path);
+			await packagedQuestions.CopyToAsync(localQuestions);
+		}
+
+		await using Stream stream = File.OpenRead(path);
+		return await JsonSerializer.DeserializeAsync<List<Question>>(stream, JsonOptions)
+			?? new List<Question>();
+	}
+
+	private static string GetWritableQuestionsPath() =>
+		Path.Combine(FileSystem.AppDataDirectory, "questions.json");
 
 	private static void ShuffleChoicesInPlace(Question question)
 	{

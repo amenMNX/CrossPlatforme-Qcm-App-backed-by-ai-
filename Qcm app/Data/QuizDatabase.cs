@@ -12,9 +12,25 @@ public class QuizDatabase
 
 	public QuizDatabase()
 	{
-		string dbPath = Path.Combine(FileSystem.AppDataDirectory, "quiz_history.db3");
+		string dbPath = GetDatabasePath();
 		connection = new SQLiteAsyncConnection(dbPath);
 		initializationTask = connection.CreateTableAsync<GameSession>();
+	}
+
+	private static string GetDatabasePath()
+	{
+#if WINDOWS && DEBUG
+		var directory = new DirectoryInfo(AppContext.BaseDirectory);
+		while (directory is not null)
+		{
+			if (File.Exists(Path.Combine(directory.FullName, "Qcm app.csproj")))
+				return Path.Combine(directory.FullName, "quiz_history.db3");
+
+			directory = directory.Parent;
+		}
+#endif
+
+		return Path.Combine(FileSystem.AppDataDirectory, "quiz_history.db3");
 	}
 
 	public async Task SaveSessionAsync(GameSession session)
