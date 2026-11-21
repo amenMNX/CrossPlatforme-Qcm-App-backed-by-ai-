@@ -24,4 +24,10 @@ public partial class HomeViewModel : ObservableObject
 	{
 		await Shell.Current.GoToAsync("stats");
 	}
+
+	[RelayCommand]
+	private async Task OpenTeacherModeAsync()
+	{
+		await Shell.Current.GoToAsync("teacher-login");
+	}
 }

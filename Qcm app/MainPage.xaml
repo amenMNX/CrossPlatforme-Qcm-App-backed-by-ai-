@@ -42,6 +42,15 @@
                 HeightRequest="50"
                 FontSize="16" />
 
+            <Button
+                Text="Teacher mode"
+                Command="{Binding OpenTeacherModeCommand}"
+                FontSize="12"
+                HeightRequest="36"
+                BackgroundColor="Transparent"
+                TextColor="Gray"
+                HorizontalOptions="Center" />
+
 		</VerticalStackLayout>
 	</ScrollView>
 

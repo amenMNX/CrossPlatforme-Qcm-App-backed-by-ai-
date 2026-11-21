@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:viewModels="clr-namespace:Qcm_app.ViewModels"
+    x:Class="Qcm_app.Views.TeacherPage"
+    x:DataType="viewModels:TeacherViewModel"
+    Title="Teacher">
+
+	<ScrollView>
+		<VerticalStackLayout Padding="24" Spacing="12">
+			<Label
+                Text="Add a question"
+                FontSize="26"
+                FontAttributes="Bold" />
+
+			<Label Text="Question" />
+			<Editor
+                Text="{Binding QuestionText}"
+                Placeholder="Enter the question"
+                AutoSize="TextChanges"
+                MinimumHeightRequest="80" />
+
+			<Label Text="Choices" />
+			<Entry Text="{Binding Choice1}" Placeholder="Choice 1" />
+			<Entry Text="{Binding Choice2}" Placeholder="Choice 2" />
+			<Entry Text="{Binding Choice3}" Placeholder="Choice 3" />
+			<Entry Text="{Binding Choice4}" Placeholder="Choice 4" />
+
+			<Label Text="Correct choice" />
+			<Picker
+                Title="Select the correct choice"
+                ItemsSource="{Binding CorrectChoiceOptions}"
+                SelectedIndex="{Binding CorrectChoiceIndex}" />
+
+			<Label Text="Category" />
+			<Entry Text="{Binding Category}" Placeholder="e.g. Science" />
+
+			<Label Text="Difficulty" />
+			<Picker
+                ItemsSource="{Binding DifficultyOptions}"
+                SelectedItem="{Binding SelectedDifficulty}" />
+
+			<Label
+                Text="{Binding StatusMessage}"
+                HorizontalTextAlignment="Center" />
+
+			<ActivityIndicator
+                IsRunning="{Binding IsSaving}"
+                IsVisible="{Binding IsSaving}" />
+
+			<Button
+                Text="Save question"
+                Command="{Binding SaveQuestionCommand}"
+                HeightRequest="50" />
+
+            <BoxView HeightRequest="1" Color="LightGray" Margin="0,12" />
+
+            <Label
+                Text="Generate questions with AI"
+                FontSize="22"
+                FontAttributes="Bold" />
+
+            <Entry
+                Text="{Binding AiTopic}"
+                Placeholder="Topic, e.g. astronomy" />
+
+            <Entry
+                Text="{Binding AiQuestionCount}"
+                Placeholder="Number of questions (1–20)"
+                Keyboard="Numeric" />
+
+            <Button
+                Text="Generate preview"
+                Command="{Binding GenerateAiQuestionsCommand}" />
+
+            <ActivityIndicator
+                IsRunning="{Binding IsGenerating}"
+                IsVisible="{Binding IsGenerating}" />
+
+            <Label
+                Text="{Binding AiStatusMessage}"
+                HorizontalTextAlignment="Center" />
+
+            <VerticalStackLayout
+                BindableLayout.ItemsSource="{Binding AiPreviewQuestions}"
+                Spacing="12">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="viewModels:TeacherQuestionDraft">
+                        <Border Padding="12" Stroke="LightGray">
+                            <VerticalStackLayout Spacing="8">
+                                <Editor
+                                    Text="{Binding Text}"
+                                    Placeholder="Question"
+                                    AutoSize="TextChanges"
+                                    MinimumHeightRequest="70" />
+                                <Entry Text="{Binding Choice1}" Placeholder="Choice 1" />
+                                <Entry Text="{Binding Choice2}" Placeholder="Choice 2" />
+                                <Entry Text="{Binding Choice3}" Placeholder="Choice 3" />
+                                <Entry Text="{Binding Choice4}" Placeholder="Choice 4" />
+                                <Entry Text="{Binding Category}" Placeholder="Category" />
+                                <Picker
+                                    Title="Correct choice"
+                                    ItemsSource="{Binding CorrectChoiceOptions}"
+                                    SelectedIndex="{Binding CorrectIndex}" />
+                                <Picker
+                                    Title="Difficulty"
+                                    ItemsSource="{Binding DifficultyOptions}"
+                                    SelectedItem="{Binding Difficulty}" />
+                                <Button
+                                    Text="Accept and save"
+                                    Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.SavePreviewQuestionCommand}"
+                                    CommandParameter="{Binding .}" />
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </VerticalStackLayout>
+		</VerticalStackLayout>
+	</ScrollView>
+</ContentPage>

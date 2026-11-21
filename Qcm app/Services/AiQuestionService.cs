@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Qcm_app.Data;
 using Qcm_app.Models;
 using Qcm_app.Services;
+using SQLitePCL;
 
 namespace Qcm_app.Services;
 
@@ -24,29 +27,116 @@ public class AiQuestionService : IQuestionProvider
 {
 	// Configure the key through the GEMINI_API_KEY environment variable.
 	// Never commit API keys to source control.
-	private const string GeminiModel = "gemini-2.0-flash";
+	private const string DefaultGeminiModel = "gemma-4-26b-a4b-it";
+	private static readonly TimeSpan GeminiRequestTimeout = TimeSpan.FromSeconds(30);
 
 	private readonly HttpClient httpClient;
 	private readonly QuestionService fallbackService;
+	private readonly QuizDatabase database;
 
-	public AiQuestionService(HttpClient httpClient, QuestionService fallbackService)
+	public string? LastGenerationIssue { get; private set; }
+
+	public AiQuestionService(HttpClient httpClient, QuestionService fallbackService, QuizDatabase database)
 	{
 		this.httpClient = httpClient;
 		this.fallbackService = fallbackService;
+		this.database = database;
 	}
+	private static GeneratedQuestion ToStoredQuestion(Question question)
+	{
+		return new GeneratedQuestion
+		{
+			Id = question.Id,
+			Text = question.Text,
+			Choice1 = question.Choices[0],
+			Choice2 = question.Choices[1],
+			Choice3 = question.Choices[2],
+			Choice4 = question.Choices[3],
+			CorrectIndex = question.CorrectIndex,
+			Category = question.Category,
+			Difficulty = question.Difficulty.ToString(),
+			Explanation = question.Explanation
+		};
+	}
+	public async Task<List<Question>> GenerateQuestionsForTeacherAsync(
+	string topic,
+	int count,
+	Difficulty? difficulty = null,
+	CancellationToken cancellationToken = default)
+	{
+		LastGenerationIssue = null;
 
+		if (string.IsNullOrWhiteSpace(topic))
+		{
+			LastGenerationIssue = "Enter a topic.";
+			return new List<Question>();
+		}
+
+		if (count is < 1 or > 20)
+		{
+			LastGenerationIssue = "Choose between 1 and 20 questions.";
+			return new List<Question>();
+		}
+
+		string apiKey = GeminiApiKeyProvider.ApiKey;
+		if (string.IsNullOrWhiteSpace(apiKey))
+		{
+			LastGenerationIssue = "GEMINI_API_KEY is not available to the app process.";
+			return new List<Question>();
+		}
+
+		try
+		{
+			var generated = await RequestQuestionsFromGeminiAsync(
+				apiKey,
+				topic.Trim(),
+				difficulty,
+				count,
+				cancellationToken);
+
+			if (generated is { Count: > 0 })
+				return generated;
+
+			LastGenerationIssue = "Gemini returned no usable questions.";
+		}
+		catch (HttpRequestException exception)
+		{
+			string status = exception.StatusCode is null
+				? "No HTTP status (network or transport error)."
+				: $"HTTP {(int)exception.StatusCode.Value} ({exception.StatusCode.Value}).";
+
+			LastGenerationIssue = $"Gemini request failed: {status}";
+		}
+		catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+		{
+			throw;
+		}
+		catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+		{
+			LastGenerationIssue = "Gemini request timed out. Please try again.";
+		}
+		catch (Exception exception)
+		{
+			LastGenerationIssue =
+				$"Gemini response could not be processed ({exception.GetType().Name}).";
+		}
+
+		return new List<Question>();
+	}
 	public async Task<List<Question>> GetQuestionsAsync(
 		string? category,
 		Difficulty? difficulty,
 		int count,
 		CancellationToken cancellationToken = default)
 	{
+		LastGenerationIssue = null;
 		string apiKey = GeminiApiKeyProvider.ApiKey;
 
 		if (string.IsNullOrWhiteSpace(apiKey))
 		{
+			LastGenerationIssue = "GEMINI_API_KEY is not available to the app process.";
 			System.Diagnostics.Debug.WriteLine(
-				"AI generation skipped: no Gemini API key configured. Falling back to local bank.");
+				$"AI generation skipped: {LastGenerationIssue} Falling back to local bank.");
 			return await fallbackService.GetQuestionsAsync(category, difficulty, count, cancellationToken);
 		}
 
@@ -57,16 +147,38 @@ public class AiQuestionService : IQuestionProvider
 
 			if (generated is { Count: > 0 })
 			{
-				await fallbackService.AddGeneratedQuestionsAsync(generated, cancellationToken);
+				await database.SaveGeneratedQuestionsAsync(
+															generated.Select(ToStoredQuestion).ToList());
 				return generated;
 			}
 
 			System.Diagnostics.Debug.WriteLine(
 				"AI generation returned no questions. Falling back to local bank.");
+			LastGenerationIssue = "Gemini returned no usable questions.";
+		}
+		catch (HttpRequestException exception)
+		{
+			string status = exception.StatusCode is null
+				? "No HTTP status (network or transport error)."
+				: $"HTTP {(int)exception.StatusCode.Value} ({exception.StatusCode.Value}).";
+			LastGenerationIssue = $"Gemini request failed: {status}";
+			// Do not log the exception message: the request URL contains the API key.
+			System.Diagnostics.Debug.WriteLine(LastGenerationIssue);
+		}
+		catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+		{
+			throw;
+		}
+		catch (OperationCanceledException)
+		{
+			LastGenerationIssue = "Gemini request timed out. Local questions will be used.";
+			System.Diagnostics.Debug.WriteLine(LastGenerationIssue);
 		}
 		catch (Exception exception)
 		{
-			System.Diagnostics.Debug.WriteLine($"AI generation failed: {exception}");
+			LastGenerationIssue = $"Gemini response could not be processed ({exception.GetType().Name}).";
+			// Avoid exception details because they may include request data or the key-bearing URL.
+			System.Diagnostics.Debug.WriteLine(LastGenerationIssue);
 		}
 
 		// Fallback path: always guarantees the user gets a playable quiz,
@@ -92,7 +204,9 @@ public class AiQuestionService : IQuestionProvider
 			$"Difficulty: {difficultyText}. " +
 			"Each question must have exactly 4 distinct answer choices, with exactly one correct answer. " +
 			"Keep questions factual, unambiguous, and appropriate for a general audience. " +
-			"Provide a short one-sentence explanation for each correct answer.";
+			"Provide a short one-sentence explanation for each correct answer. " +
+			"Return only a JSON array, with no Markdown fences, using exactly these fields: " +
+			"text, choices, correctIndex, and explanation.";
 
 		var requestBody = new
 		{
@@ -106,24 +220,53 @@ public class AiQuestionService : IQuestionProvider
 			},
 			generationConfig = new
 			{
-				responseMimeType = "application/json",
-				responseSchema = BuildResponseSchema()
+				responseMimeType = "application/json"
 			}
 		};
 
 		string requestJson = JsonSerializer.Serialize(requestBody);
 
+		string model = Environment.GetEnvironmentVariable("GEMINI_MODEL")?.Trim();
+		if (string.IsNullOrWhiteSpace(model))
+			model = DefaultGeminiModel;
+
 		string url =
-			$"https://generativelanguage.googleapis.com/v1beta/models/{GeminiModel}:generateContent?key={apiKey}";
+			$"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent";
 
-		using var content = new StringContent(requestJson, Encoding.UTF8, "application/json");
-		using var response = await httpClient.PostAsync(url, content, cancellationToken);
+		using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+		timeoutCts.CancelAfter(GeminiRequestTimeout);
+		for (int attempt = 0; attempt < 3; attempt++)
+		{
+			using var content = new StringContent(requestJson, Encoding.UTF8, "application/json");
+			using var request = new HttpRequestMessage(HttpMethod.Post, url)
+			{
+				Content = content
+			};
+			// Keep the key out of the URL: URLs can be captured by debugger/network logs.
+			request.Headers.TryAddWithoutValidation("x-goog-api-key", apiKey);
 
-		response.EnsureSuccessStatusCode();
+			using var response = await httpClient.SendAsync(
+				request,
+				HttpCompletionOption.ResponseHeadersRead,
+				timeoutCts.Token);
 
-		string responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
+			if (response.StatusCode == HttpStatusCode.ServiceUnavailable && attempt < 2)
+			{
+				// 503 can be transient. Retry briefly without
+				// exposing the API key or waiting through another full HttpClient timeout.
+				await Task.Delay(TimeSpan.FromSeconds(attempt == 0 ? 2 : 5), timeoutCts.Token);
+				continue;
+			}
 
-		return ParseGeneratedQuestions(responseJson, topic, difficulty);
+			response.EnsureSuccessStatusCode();
+			string responseJson = await response.Content.ReadAsStringAsync(timeoutCts.Token);
+			return ParseGeneratedQuestions(responseJson, topic, difficulty);
+		}
+
+		throw new HttpRequestException(
+			"Gemini remained unavailable after retries.",
+			null,
+			HttpStatusCode.ServiceUnavailable);
 	}
 
 	/// <summary>
@@ -160,29 +303,59 @@ public class AiQuestionService : IQuestionProvider
 	{
 		using var document = JsonDocument.Parse(geminiResponseJson);
 
-		string? innerJson = document.RootElement
+		// When responseMimeType = "application/json" is set, Gemini returns the
+		// structured data directly as a JSON value inside parts[0].text — it is
+		// already a JSON string, not a JSON-encoded string. We read it as a raw
+		// string and deserialize it directly. If the value is instead a JSON
+		// array element (some SDK versions embed it differently), fall back to
+		// re-parsing the text string.
+		var partsElement = document.RootElement
 			.GetProperty("candidates")[0]
 			.GetProperty("content")
-			.GetProperty("parts")[0]
-			.GetProperty("text")
-			.GetString();
+			.GetProperty("parts")[0];
 
-		if (string.IsNullOrWhiteSpace(innerJson))
-			return null;
+		List<GeneratedQuestionDto>? rawQuestions = null;
 
-		var rawQuestions = JsonSerializer.Deserialize<List<GeneratedQuestionDto>>(
-			innerJson,
-			new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+		// Try treating parts[0].text as a JSON string to re-parse (old behaviour
+		// for plain-text responses or non-structured output mode).
+		if (partsElement.TryGetProperty("text", out var textElement))
+		{
+			string? textValue = textElement.GetString();
+			if (!string.IsNullOrWhiteSpace(textValue))
+			{
+				// textValue may be a JSON array string (structured output) or a
+				// markdown-fenced block from a plain-text response.
+				string trimmed = textValue.Trim();
+				// Strip optional ```json ... ``` fences emitted by some model versions.
+				if (trimmed.StartsWith("```"))
+				{
+					int firstNewline = trimmed.IndexOf('\n');
+					int lastFence = trimmed.LastIndexOf("```");
+					if (firstNewline >= 0 && lastFence > firstNewline)
+						trimmed = trimmed[(firstNewline + 1)..lastFence].Trim();
+				}
+				else if (trimmed.EndsWith("```", StringComparison.Ordinal))
+				{
+					trimmed = trimmed[..^3].Trim();
+				}
 
-		if (rawQuestions is null)
+				if (trimmed.StartsWith("["))
+				{
+					rawQuestions = JsonSerializer.Deserialize<List<GeneratedQuestionDto>>(
+						trimmed,
+						new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+				}
+			}
+		}
+
+		if (rawQuestions is null || rawQuestions.Count == 0)
 			return null;
 
 		var questions = new List<Question>();
-		int index = 0;
 
 		foreach (var raw in rawQuestions)
 		{
-			if (raw.Choices is null || raw.Choices.Count < 2)
+			if (raw.Choices is null || raw.Choices.Count != 4)
 				continue;
 
 			if (raw.CorrectIndex < 0 || raw.CorrectIndex >= raw.Choices.Count)
@@ -198,8 +371,6 @@ public class AiQuestionService : IQuestionProvider
 				Difficulty = difficulty ?? Models.Difficulty.Medium,
 				Explanation = raw.Explanation
 			});
-
-			index++;
 		}
 
 		return questions;

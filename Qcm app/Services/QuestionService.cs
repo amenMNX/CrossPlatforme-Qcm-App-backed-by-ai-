@@ -1,9 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Text.Json;
-using Qcm_app.Models;
+﻿using System.Text.Json;
 using System.Text.Json.Serialization;
+using Qcm_app.Data;
+using Qcm_app.Models;
 
 namespace Qcm_app.Services;
 
@@ -14,14 +12,20 @@ namespace Qcm_app.Services;
 /// </summary>
 public class QuestionService : IQuestionProvider
 {
-	private List<Question>? cachedQuestions;
+	private readonly QuizDatabase database;
 	private readonly SemaphoreSlim questionsLock = new(1, 1);
+	private List<Question>? embeddedQuestions;
 	private static readonly JsonSerializerOptions JsonOptions = new()
 	{
 		PropertyNameCaseInsensitive = true,
 		WriteIndented = true,
 		Converters = { new JsonStringEnumConverter() }
 	};
+
+	public QuestionService(QuizDatabase database)
+	{
+		this.database = database;
+	}
 
 	public async Task<List<Question>> GetQuestionsAsync(
 		string? category,
@@ -71,93 +75,80 @@ public class QuestionService : IQuestionProvider
 			.ToList();
 	}
 
-	public async Task AddGeneratedQuestionsAsync(
-		IReadOnlyCollection<Question> questions,
-		CancellationToken cancellationToken = default)
-	{
-		if (questions.Count == 0)
-			return;
-
-		await questionsLock.WaitAsync(cancellationToken);
-		try
-		{
-			cachedQuestions ??= await LoadQuestionsFromStorageAsync();
-
-			var knownIds = cachedQuestions
-				.Select(question => question.Id)
-				.ToHashSet(StringComparer.Ordinal);
-			var additions = questions
-				.Where(question => knownIds.Add(question.Id))
-				.ToList();
-
-			if (additions.Count == 0)
-				return;
-
-			var updatedQuestions = cachedQuestions.Concat(additions).ToList();
-			var path = GetWritableQuestionsPath();
-			var temporaryPath = $"{path}.{Guid.NewGuid():N}.tmp";
-
-			try
-			{
-				string json = JsonSerializer.Serialize(updatedQuestions, JsonOptions);
-				await File.WriteAllTextAsync(temporaryPath, json, cancellationToken);
-				File.Move(temporaryPath, path, overwrite: true);
-				cachedQuestions = updatedQuestions;
-			}
-			finally
-			{
-				if (File.Exists(temporaryPath))
-					File.Delete(temporaryPath);
-			}
-		}
-		finally
-		{
-			questionsLock.Release();
-		}
-	}
-
 	private async Task<List<Question>> LoadAllQuestionsAsync()
 	{
+		List<Question> embedded;
+
 		await questionsLock.WaitAsync();
 		try
 		{
-			cachedQuestions ??= await LoadQuestionsFromStorageAsync();
-		}
-		catch (Exception exception)
-		{
-			System.Diagnostics.Debug.WriteLine(
-				$"Question loading error: {exception}");
-
-			cachedQuestions = new List<Question>();
+			embeddedQuestions ??= await LoadEmbeddedQuestionsAsync();
+			embedded = embeddedQuestions.Select(CloneQuestion).ToList();
 		}
 		finally
 		{
 			questionsLock.Release();
 		}
 
-		return cachedQuestions;
+		var teacherQuestions = await database.GetTeacherQuestionsAsync();
+		var generatedQuestions = await database.GetGeneratedQuestionsAsync();
+
+		return embedded
+			.Concat(teacherQuestions.Select(ToQuestion))
+			.Concat(generatedQuestions.Select(ToQuestion))
+			.ToList();
 	}
 
-	private static async Task<List<Question>> LoadQuestionsFromStorageAsync()
+	private static async Task<List<Question>> LoadEmbeddedQuestionsAsync()
 	{
-		Directory.CreateDirectory(FileSystem.AppDataDirectory);
-		string path = GetWritableQuestionsPath();
-
-		if (!File.Exists(path))
-		{
-			await using Stream packagedQuestions =
-				await FileSystem.OpenAppPackageFileAsync("questions.json");
-			await using var localQuestions = File.Create(path);
-			await packagedQuestions.CopyToAsync(localQuestions);
-		}
-
-		await using Stream stream = File.OpenRead(path);
+		await using Stream stream =
+			await FileSystem.OpenAppPackageFileAsync("questions.json");
 		return await JsonSerializer.DeserializeAsync<List<Question>>(stream, JsonOptions)
 			?? new List<Question>();
 	}
 
-	private static string GetWritableQuestionsPath() =>
-		Path.Combine(FileSystem.AppDataDirectory, "questions.json");
+	private static Question ToQuestion(TeacherQuestion stored) => new()
+	{
+		Id = $"teacher-{stored.Id}",
+		Text = stored.Text,
+		Choices = new List<string>
+		{
+			stored.Choice1, stored.Choice2, stored.Choice3, stored.Choice4
+		},
+		CorrectIndex = stored.CorrectIndex,
+		Category = stored.Category,
+		Difficulty = ParseDifficulty(stored.Difficulty)
+	};
+
+	private static Question ToQuestion(GeneratedQuestion stored) => new()
+	{
+		Id = stored.Id,
+		Text = stored.Text,
+		Choices = new List<string>
+		{
+			stored.Choice1, stored.Choice2, stored.Choice3, stored.Choice4
+		},
+		CorrectIndex = stored.CorrectIndex,
+		Category = stored.Category,
+		Difficulty = ParseDifficulty(stored.Difficulty),
+		Explanation = stored.Explanation
+	};
+
+	private static Difficulty ParseDifficulty(string value) =>
+		Enum.TryParse<Difficulty>(value, ignoreCase: true, out var difficulty)
+			? difficulty
+			: Difficulty.Medium;
+
+	private static Question CloneQuestion(Question question) => new()
+	{
+		Id = question.Id,
+		Text = question.Text,
+		Choices = question.Choices.ToList(),
+		CorrectIndex = question.CorrectIndex,
+		Category = question.Category,
+		Difficulty = question.Difficulty,
+		Explanation = question.Explanation
+	};
 
 	private static void ShuffleChoicesInPlace(Question question)
 	{

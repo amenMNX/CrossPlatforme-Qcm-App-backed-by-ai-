@@ -84,7 +84,28 @@ public partial class QuizViewModel : ObservableObject, IQueryAttributable
 
 		IQuestionProvider provider = useAiGeneration ? aiQuestionService : localQuestionService;
 
-		questions = await provider.GetQuestionsAsync(category, difficulty, count: 10);
+		try
+		{
+			// Smaller AI batches are much more likely to complete before the
+			// request deadline. Local quizzes keep their original 10 questions.
+			int questionCount = useAiGeneration ? 4 : 10;
+			questions = await provider.GetQuestionsAsync(category, difficulty, questionCount);
+		}
+		catch (OperationCanceledException)
+		{
+			// A user/app cancellation must not leave the page in an infinite loading state.
+			IsLoading = false;
+			FeedbackMessage = "Question generation was canceled.";
+			return;
+		}
+		catch (Exception)
+		{
+			IsLoading = false;
+			FeedbackMessage = useAiGeneration
+				? "AI generation failed. Please try again or use local questions."
+				: "Could not load questions. Please try again.";
+			return;
+		}
 
 		IsLoading = false;
 
@@ -98,6 +119,11 @@ public partial class QuizViewModel : ObservableObject, IQueryAttributable
 		Score = 0;
 		quizStartedAt = DateTime.UtcNow;
 		DisplayCurrentQuestion();
+
+		if (useAiGeneration && aiQuestionService.LastGenerationIssue is string issue)
+			FeedbackMessage = issue.Contains("Local questions will be used", StringComparison.OrdinalIgnoreCase)
+				? issue
+				: $"Local questions used. {issue}";
 	}
 
 	private void DisplayCurrentQuestion()

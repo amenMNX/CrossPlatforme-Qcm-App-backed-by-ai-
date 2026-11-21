@@ -10,11 +10,45 @@ public class QuizDatabase
 	private readonly SQLiteAsyncConnection connection;
 	private readonly Task initializationTask;
 
+	public async Task SaveGeneratedQuestionsAsync(
+	IReadOnlyCollection<GeneratedQuestion> questions)
+	{
+		await initializationTask;
+
+		foreach (var question in questions)
+			await connection.InsertOrReplaceAsync(question);
+	}
+
+	public async Task<List<GeneratedQuestion>> GetGeneratedQuestionsAsync()
+	{
+		await initializationTask;
+		return await connection.Table<GeneratedQuestion>()
+			.ToListAsync();
+	}
+	private async Task InitializeAsync()
+	{
+		await connection.CreateTableAsync<GameSession>();
+		await connection.CreateTableAsync<TeacherQuestion>();
+		await connection.CreateTableAsync<GeneratedQuestion>();
+	}
+	public async Task<int> AddTeacherQuestionAsync(TeacherQuestion question)
+	{
+		await initializationTask;
+		return await connection.InsertAsync(question);
+	}
+
+	public async Task<List<TeacherQuestion>> GetTeacherQuestionsAsync()
+	{
+		await initializationTask;
+		return await connection.Table<TeacherQuestion>()
+			.OrderBy(question => question.Id)
+			.ToListAsync();
+	}
 	public QuizDatabase()
 	{
 		string dbPath = GetDatabasePath();
 		connection = new SQLiteAsyncConnection(dbPath);
-		initializationTask = connection.CreateTableAsync<GameSession>();
+		initializationTask = InitializeAsync();
 	}
 
 	private static string GetDatabasePath()

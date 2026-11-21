@@ -12,6 +12,8 @@ namespace Qcm_app
 			Routing.RegisterRoute("result", typeof(ResultPage));
 			Routing.RegisterRoute("history", typeof(HistoryPage));
 			Routing.RegisterRoute("stats", typeof(StatsPage));
+			Routing.RegisterRoute("teacher-login", typeof(TeacherLoginPage));
+			Routing.RegisterRoute("teacher", typeof(TeacherPage));
 		}
 	}
 }
