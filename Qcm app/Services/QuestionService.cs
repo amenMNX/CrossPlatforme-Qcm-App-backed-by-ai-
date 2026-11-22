@@ -7,8 +7,8 @@ namespace Qcm_app.Services;
 
 /// <summary>
 /// Loads questions from the embedded local JSON bank (Resources/Raw/questions.json).
-/// This is the offline, always-available question source and the fallback
-/// used whenever AI generation (see AiQuestionService) is unavailable.
+/// This is the offline, always-available question source for quizzes that
+/// explicitly use the local question bank.
 /// </summary>
 public class QuestionService : IQuestionProvider
 {

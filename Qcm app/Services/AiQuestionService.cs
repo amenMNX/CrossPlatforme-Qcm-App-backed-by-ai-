@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.Logging;
 using Qcm_app.Data;
 using Qcm_app.Models;
 using Qcm_app.Services;
@@ -17,30 +19,31 @@ namespace Qcm_app.Services;
 /// IQuestionProvider interface as QuestionService, so QuizViewModel can
 /// switch between "local bank" and "AI generated" without any other change.
 ///
-/// If the API call fails for any reason (no network, invalid key, quota
-/// exceeded, malformed response...) this falls back to the local
-/// QuestionService, per the cahier des charges requirement that AI content
-/// must never leave the user stuck without a working quiz (US30: "fallback
-/// sur le JSON local hors-ligne").
+/// If the API call fails, the service returns no questions and exposes a
+/// user-facing issue so the caller can offer a retry.
 /// </summary>
 public class AiQuestionService : IQuestionProvider
 {
 	// Configure the key through the GEMINI_API_KEY environment variable.
 	// Never commit API keys to source control.
 	private const string DefaultGeminiModel = "gemma-4-26b-a4b-it";
-	private static readonly TimeSpan GeminiRequestTimeout = TimeSpan.FromSeconds(30);
+	private static readonly TimeSpan GeminiRequestTimeout = TimeSpan.FromSeconds(45);
+	private static readonly TimeSpan GeminiAttemptTimeout = TimeSpan.FromSeconds(18);
 
 	private readonly HttpClient httpClient;
-	private readonly QuestionService fallbackService;
 	private readonly QuizDatabase database;
+	private readonly ILogger<AiQuestionService> logger;
 
 	public string? LastGenerationIssue { get; private set; }
 
-	public AiQuestionService(HttpClient httpClient, QuestionService fallbackService, QuizDatabase database)
+	public AiQuestionService(
+		HttpClient httpClient,
+		QuizDatabase database,
+		ILogger<AiQuestionService> logger)
 	{
 		this.httpClient = httpClient;
-		this.fallbackService = fallbackService;
 		this.database = database;
+		this.logger = logger;
 	}
 	private static GeneratedQuestion ToStoredQuestion(Question question)
 	{
@@ -135,9 +138,7 @@ public class AiQuestionService : IQuestionProvider
 		if (string.IsNullOrWhiteSpace(apiKey))
 		{
 			LastGenerationIssue = "GEMINI_API_KEY is not available to the app process.";
-			System.Diagnostics.Debug.WriteLine(
-				$"AI generation skipped: {LastGenerationIssue} Falling back to local bank.");
-			return await fallbackService.GetQuestionsAsync(category, difficulty, count, cancellationToken);
+			return new List<Question>();
 		}
 
 		try
@@ -152,18 +153,11 @@ public class AiQuestionService : IQuestionProvider
 				return generated;
 			}
 
-			System.Diagnostics.Debug.WriteLine(
-				"AI generation returned no questions. Falling back to local bank.");
 			LastGenerationIssue = "Gemini returned no usable questions.";
 		}
 		catch (HttpRequestException exception)
 		{
-			string status = exception.StatusCode is null
-				? "No HTTP status (network or transport error)."
-				: $"HTTP {(int)exception.StatusCode.Value} ({exception.StatusCode.Value}).";
-			LastGenerationIssue = $"Gemini request failed: {status}";
-			// Do not log the exception message: the request URL contains the API key.
-			System.Diagnostics.Debug.WriteLine(LastGenerationIssue);
+			LastGenerationIssue = exception.Message;
 		}
 		catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
 		{
@@ -171,19 +165,19 @@ public class AiQuestionService : IQuestionProvider
 		}
 		catch (OperationCanceledException)
 		{
-			LastGenerationIssue = "Gemini request timed out. Local questions will be used.";
-			System.Diagnostics.Debug.WriteLine(LastGenerationIssue);
+			LastGenerationIssue = "Gemini request timed out. Please try again.";
 		}
 		catch (Exception exception)
 		{
 			LastGenerationIssue = $"Gemini response could not be processed ({exception.GetType().Name}).";
-			// Avoid exception details because they may include request data or the key-bearing URL.
-			System.Diagnostics.Debug.WriteLine(LastGenerationIssue);
+			logger.LogError(
+				"Gemini request processing failed for model {Model} after {DurationMs} ms ({ExceptionType}).",
+				GetModelName(),
+				0,
+				exception.GetType().Name);
 		}
 
-		// Fallback path: always guarantees the user gets a playable quiz,
-		// even with no internet connection or an API error.
-		return await fallbackService.GetQuestionsAsync(category, difficulty, count, cancellationToken);
+		return new List<Question>();
 	}
 
 	private async Task<List<Question>?> RequestQuestionsFromGeminiAsync(
@@ -220,53 +214,160 @@ public class AiQuestionService : IQuestionProvider
 			},
 			generationConfig = new
 			{
-				responseMimeType = "application/json"
+				responseMimeType = "application/json",
+				thinkingConfig = new { thinkingLevel = "MINIMAL" }
 			}
 		};
 
 		string requestJson = JsonSerializer.Serialize(requestBody);
 
-		string model = Environment.GetEnvironmentVariable("GEMINI_MODEL")?.Trim();
-		if (string.IsNullOrWhiteSpace(model))
-			model = DefaultGeminiModel;
+		string model = GetModelName();
 
 		string url =
 			$"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent";
 
-		using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-		timeoutCts.CancelAfter(GeminiRequestTimeout);
-		for (int attempt = 0; attempt < 3; attempt++)
+		var timer = Stopwatch.StartNew();
+		using var totalTimeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+		totalTimeoutCts.CancelAfter(GeminiRequestTimeout);
+		for (int attempt = 1; attempt <= 3; attempt++)
 		{
-			using var content = new StringContent(requestJson, Encoding.UTF8, "application/json");
-			using var request = new HttpRequestMessage(HttpMethod.Post, url)
-			{
-				Content = content
-			};
-			// Keep the key out of the URL: URLs can be captured by debugger/network logs.
-			request.Headers.TryAddWithoutValidation("x-goog-api-key", apiKey);
+			using var attemptTimeoutCts = CancellationTokenSource.CreateLinkedTokenSource(totalTimeoutCts.Token);
+			attemptTimeoutCts.CancelAfter(GeminiAttemptTimeout);
 
-			using var response = await httpClient.SendAsync(
-				request,
-				HttpCompletionOption.ResponseHeadersRead,
-				timeoutCts.Token);
-
-			if (response.StatusCode == HttpStatusCode.ServiceUnavailable && attempt < 2)
+			try
 			{
-				// 503 can be transient. Retry briefly without
-				// exposing the API key or waiting through another full HttpClient timeout.
-				await Task.Delay(TimeSpan.FromSeconds(attempt == 0 ? 2 : 5), timeoutCts.Token);
-				continue;
+				using var content = new StringContent(requestJson, Encoding.UTF8, "application/json");
+				using var request = new HttpRequestMessage(HttpMethod.Post, url)
+				{
+					Content = content
+				};
+				request.Headers.TryAddWithoutValidation("x-goog-api-key", apiKey);
+
+				using var response = await httpClient.SendAsync(
+					request,
+					HttpCompletionOption.ResponseHeadersRead,
+					attemptTimeoutCts.Token);
+
+				if (response.IsSuccessStatusCode)
+				{
+					string responseJson = await response.Content.ReadAsStringAsync(attemptTimeoutCts.Token);
+					var questions = ParseGeneratedQuestions(responseJson, topic, difficulty);
+					logger.LogInformation(
+						"Gemini request succeeded for model {Model} with HTTP {StatusCode} in {DurationMs} ms (attempt {Attempt}).",
+						model,
+					(int)response.StatusCode,
+					(int)timer.ElapsedMilliseconds,
+					attempt);
+					return questions;
+				}
+
+				string safeError = await ReadSafeErrorMessageAsync(response, apiKey, attemptTimeoutCts.Token);
+				int statusCode = (int)response.StatusCode;
+				logger.LogWarning(
+					"Gemini request failed for model {Model} with HTTP {StatusCode} in {DurationMs} ms (attempt {Attempt}). {ErrorMessage}",
+					model,
+					statusCode,
+					(int)timer.ElapsedMilliseconds,
+					attempt,
+					safeError);
+
+				if (attempt == 3 || !IsTransientStatusCode(response.StatusCode))
+					throw new HttpRequestException(
+						$"Gemini returned HTTP {statusCode}: {safeError}",
+						null,
+						response.StatusCode);
+
+				await Task.Delay(GetRetryDelay(response, attempt), totalTimeoutCts.Token);
 			}
-
-			response.EnsureSuccessStatusCode();
-			string responseJson = await response.Content.ReadAsStringAsync(timeoutCts.Token);
-			return ParseGeneratedQuestions(responseJson, topic, difficulty);
+			catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+			{
+				throw;
+			}
+			catch (OperationCanceledException) when (totalTimeoutCts.IsCancellationRequested)
+			{
+				throw new OperationCanceledException("Gemini request timed out.");
+			}
+			catch (OperationCanceledException) when (attempt < 3)
+			{
+				logger.LogWarning(
+					"Gemini request timed out for model {Model} in {DurationMs} ms (attempt {Attempt}); retrying.",
+					model,
+					(int)timer.ElapsedMilliseconds,
+					attempt);
+				await Task.Delay(TimeSpan.FromSeconds(attempt), totalTimeoutCts.Token);
+			}
+			catch (HttpRequestException exception) when (attempt < 3 && IsTransientStatusCode(exception.StatusCode))
+			{
+				int? statusCode = exception.StatusCode is null ? null : (int)exception.StatusCode.Value;
+				logger.LogWarning(
+					"Gemini transport failure for model {Model} with HTTP status {StatusCode} in {DurationMs} ms (attempt {Attempt}); retrying.",
+					model,
+					statusCode,
+					(int)timer.ElapsedMilliseconds,
+					attempt);
+				await Task.Delay(TimeSpan.FromSeconds(attempt), totalTimeoutCts.Token);
+			}
+			catch (HttpRequestException exception) when (exception.StatusCode is null)
+			{
+				logger.LogWarning(
+					"Gemini transport failure for model {Model} in {DurationMs} ms (attempt {Attempt}).",
+					model,
+					(int)timer.ElapsedMilliseconds,
+					attempt);
+				throw new HttpRequestException("Gemini network request failed. Please try again.");
+			}
 		}
 
-		throw new HttpRequestException(
-			"Gemini remained unavailable after retries.",
-			null,
-			HttpStatusCode.ServiceUnavailable);
+		throw new HttpRequestException("Gemini remained unavailable after retries.", null, HttpStatusCode.ServiceUnavailable);
+	}
+
+	private static string GetModelName()
+	{
+		string? model = Environment.GetEnvironmentVariable("GEMINI_MODEL")?.Trim();
+		return string.IsNullOrWhiteSpace(model) ? DefaultGeminiModel : model;
+	}
+
+	private static bool IsTransientStatusCode(HttpStatusCode? statusCode) =>
+		statusCode is null || statusCode is HttpStatusCode.RequestTimeout or
+			(HttpStatusCode)429 or HttpStatusCode.InternalServerError or
+			HttpStatusCode.BadGateway or HttpStatusCode.ServiceUnavailable or
+			HttpStatusCode.GatewayTimeout;
+
+	private static TimeSpan GetRetryDelay(HttpResponseMessage response, int attempt)
+	{
+		TimeSpan? retryAfter = response.Headers.RetryAfter?.Delta;
+		if (retryAfter is null && response.Headers.RetryAfter?.Date is DateTimeOffset retryDate)
+			retryAfter = retryDate - DateTimeOffset.UtcNow;
+
+		return retryAfter is { } delay && delay > TimeSpan.Zero
+			? TimeSpan.FromSeconds(Math.Min(delay.TotalSeconds, 5))
+			: TimeSpan.FromSeconds(attempt);
+	}
+
+	private static async Task<string> ReadSafeErrorMessageAsync(
+		HttpResponseMessage response,
+		string apiKey,
+		CancellationToken cancellationToken)
+	{
+		string message = "No error details were provided by Gemini.";
+		try
+		{
+			string body = await response.Content.ReadAsStringAsync(cancellationToken);
+			using var document = JsonDocument.Parse(body);
+			if (document.RootElement.TryGetProperty("error", out var error) &&
+				error.TryGetProperty("message", out var errorMessage) &&
+				errorMessage.ValueKind == JsonValueKind.String)
+			{
+				message = errorMessage.GetString() ?? message;
+			}
+		}
+		catch (JsonException)
+		{
+		}
+
+		message = message.Replace(apiKey, "[redacted]", StringComparison.Ordinal);
+		message = string.Join(" ", message.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+		return message.Length <= 240 ? message : message[..240];
 	}
 
 	/// <summary>
@@ -358,14 +459,22 @@ public class AiQuestionService : IQuestionProvider
 			if (raw.Choices is null || raw.Choices.Count != 4)
 				continue;
 
+			if (string.IsNullOrWhiteSpace(raw.Text) ||
+				raw.Choices.Any(string.IsNullOrWhiteSpace) ||
+				raw.Choices.Select(choice => choice.Trim())
+					.Distinct(StringComparer.OrdinalIgnoreCase).Count() != 4)
+			{
+				continue;
+			}
+
 			if (raw.CorrectIndex < 0 || raw.CorrectIndex >= raw.Choices.Count)
 				continue;
 
 			questions.Add(new Question
 			{
 				Id = $"ai-{Guid.NewGuid():N}",
-				Text = raw.Text ?? string.Empty,
-				Choices = raw.Choices,
+				Text = raw.Text.Trim(),
+				Choices = raw.Choices.Select(choice => choice.Trim()).ToList(),
 				CorrectIndex = raw.CorrectIndex,
 				Category = topic,
 				Difficulty = difficulty ?? Models.Difficulty.Medium,

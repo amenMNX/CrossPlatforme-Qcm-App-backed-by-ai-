@@ -16,6 +16,14 @@ public partial class HistoryPage : ContentPage
 	protected override async void OnAppearing()
 	{
 		base.OnAppearing();
-		await viewModel.InitializeAsync();
+		try
+		{
+			await viewModel.InitializeAsync();
+		}
+		catch (Exception exception)
+		{
+			System.Diagnostics.Debug.WriteLine(exception);
+			await DisplayAlert("Loading error", "Could not load quiz history.", "OK");
+		}
 	}
 }

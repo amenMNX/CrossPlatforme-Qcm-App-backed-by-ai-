@@ -16,6 +16,7 @@ public partial class QuizViewModel : ObservableObject, IQueryAttributable
 	private int currentIndex;
 	private bool isInitialized;
 	private DateTime quizStartedAt;
+	private bool usedAiGeneration;
 
 	private string category = QuizSettings.AllCategories;
 	private Difficulty? difficulty;
@@ -31,6 +32,9 @@ public partial class QuizViewModel : ObservableObject, IQueryAttributable
 	private string progressText = string.Empty;
 
 	[ObservableProperty]
+	private double progress;
+
+	[ObservableProperty]
 	private int score;
 
 	[ObservableProperty]
@@ -40,7 +44,36 @@ public partial class QuizViewModel : ObservableObject, IQueryAttributable
 	private bool isLoading;
 
 	[ObservableProperty]
+	private bool hasGenerationError;
+
+	[ObservableProperty]
+	private bool isQuizReady;
+
+	[ObservableProperty]
 	private string loadingMessage = "Loading questions...";
+
+	[ObservableProperty]
+	private string scoreText = "Score: 0";
+
+	[ObservableProperty]
+	private string topicText = "General knowledge";
+
+	[ObservableProperty]
+	private string quizModeText = "LOCAL QUIZ";
+
+	[ObservableProperty]
+	private string sourceMessage = string.Empty;
+
+	public bool HasSourceMessage => !string.IsNullOrWhiteSpace(SourceMessage);
+
+	[ObservableProperty]
+	private string difficultyText = "Mixed difficulty";
+
+	[ObservableProperty]
+	private string feedbackTitle = string.Empty;
+
+	[ObservableProperty]
+	private string feedbackColor = "#2E9B62";
 
 	public QuizViewModel(
 		QuestionService localQuestionService,
@@ -77,7 +110,24 @@ public partial class QuizViewModel : ObservableObject, IQueryAttributable
 			return;
 
 		isInitialized = true;
+		await LoadQuestionsAsync();
+	}
+
+	[RelayCommand]
+	private async Task RetryAsync()
+	{
+		await LoadQuestionsAsync();
+	}
+
+	private async Task LoadQuestionsAsync()
+	{
 		IsLoading = true;
+		HasGenerationError = false;
+		IsQuizReady = false;
+		FeedbackMessage = string.Empty;
+		SourceMessage = string.Empty;
+		OnPropertyChanged(nameof(HasSourceMessage));
+		usedAiGeneration = false;
 		LoadingMessage = useAiGeneration
 			? "Generating questions with AI..."
 			: "Loading questions...";
@@ -90,47 +140,80 @@ public partial class QuizViewModel : ObservableObject, IQueryAttributable
 			// request deadline. Local quizzes keep their original 10 questions.
 			int questionCount = useAiGeneration ? 4 : 10;
 			questions = await provider.GetQuestionsAsync(category, difficulty, questionCount);
+			usedAiGeneration = useAiGeneration && questions.Count > 0;
 		}
 		catch (OperationCanceledException)
 		{
-			// A user/app cancellation must not leave the page in an infinite loading state.
-			IsLoading = false;
 			FeedbackMessage = "Question generation was canceled.";
+			ShowGenerationError();
 			return;
+		}
+		catch (Exception) when (useAiGeneration)
+		{
+			questions = new List<Question>();
 		}
 		catch (Exception)
 		{
-			IsLoading = false;
-			FeedbackMessage = useAiGeneration
-				? "AI generation failed. Please try again or use local questions."
-				: "Could not load questions. Please try again.";
+			FeedbackMessage = "Could not load questions. Please try again.";
+			ShowGenerationError();
 			return;
+		}
+
+		bool usedLocalFallback = false;
+		if (useAiGeneration && questions.Count == 0)
+		{
+			usedLocalFallback = true;
+			try
+			{
+				questions = await localQuestionService.GetQuestionsAsync(category, difficulty, 4);
+			}
+			catch (Exception)
+			{
+				questions = new List<Question>();
+			}
+
+			if (questions.Count > 0)
+			{
+				SourceMessage = "AI questions could not be generated. Using the local question bank instead.";
+				OnPropertyChanged(nameof(HasSourceMessage));
+			}
 		}
 
 		IsLoading = false;
 
 		if (questions.Count == 0)
 		{
-			FeedbackMessage = "No questions available. Please try a different category.";
+			FeedbackMessage = usedLocalFallback
+				? "No questions are available for this category and difficulty. Please try another selection."
+				: "No questions available. Please try a different category.";
+			HasGenerationError = true;
 			return;
 		}
 
 		currentIndex = 0;
 		Score = 0;
+		TopicText = category == QuizSettings.AllCategories ? "General knowledge" : category;
+		DifficultyText = difficulty?.ToString() ?? "Mixed difficulty";
+		QuizModeText = usedAiGeneration ? "AI QUIZ" : "LOCAL QUIZ";
 		quizStartedAt = DateTime.UtcNow;
 		DisplayCurrentQuestion();
+		IsQuizReady = true;
+	}
 
-		if (useAiGeneration && aiQuestionService.LastGenerationIssue is string issue)
-			FeedbackMessage = issue.Contains("Local questions will be used", StringComparison.OrdinalIgnoreCase)
-				? issue
-				: $"Local questions used. {issue}";
+	private void ShowGenerationError()
+	{
+		IsLoading = false;
+		HasGenerationError = true;
 	}
 
 	private void DisplayCurrentQuestion()
 	{
 		CurrentQuestion = questions[currentIndex];
 		ProgressText = $"Question {currentIndex + 1} / {questions.Count}";
+		Progress = (double)(currentIndex + 1) / questions.Count;
+		ScoreText = $"Score: {Score}";
 		FeedbackMessage = string.Empty;
+		FeedbackTitle = string.Empty;
 		IsAnswered = false;
 	}
 
@@ -147,16 +230,33 @@ public partial class QuizViewModel : ObservableObject, IQueryAttributable
 		if (selectedIndex == CurrentQuestion.CorrectIndex)
 		{
 			Score++;
-			FeedbackMessage = "Correct answer!";
+			FeedbackTitle = "Correct!";
+			FeedbackColor = "#2E9B62";
+			FeedbackMessage = CurrentQuestion.Explanation ?? "Excellent choice. Keep going!";
 		}
 		else
 		{
+			FeedbackTitle = "Not quite";
+			FeedbackColor = "#D85C5C";
 			FeedbackMessage =
 				$"Wrong answer. Correct answer: " +
-				$"{CurrentQuestion.Choices[CurrentQuestion.CorrectIndex]}";
+				$"{CurrentQuestion.Choices[CurrentQuestion.CorrectIndex]}" +
+				(string.IsNullOrWhiteSpace(CurrentQuestion.Explanation)
+					? string.Empty
+					: $"\n{CurrentQuestion.Explanation}");
 		}
 
-		await Task.Delay(1200);
+		ScoreText = $"Score: {Score}";
+		OnPropertyChanged(nameof(CanAdvance));
+	}
+
+	public bool CanAdvance => IsAnswered;
+
+	[RelayCommand]
+	private async Task NextAsync()
+	{
+		if (!CanAdvance)
+			return;
 
 		if (currentIndex < questions.Count - 1)
 		{
@@ -184,7 +284,7 @@ public partial class QuizViewModel : ObservableObject, IQueryAttributable
 			Score = Score,
 			TotalQuestions = questions.Count,
 			DurationSeconds = durationSeconds,
-			wasAiGenerated = useAiGeneration
+			wasAiGenerated = usedAiGeneration
 		};
 
 		try

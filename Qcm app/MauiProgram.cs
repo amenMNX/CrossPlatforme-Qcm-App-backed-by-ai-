@@ -31,7 +31,7 @@ namespace Qcm_app
 			{
 				// The service also has its own linked-token timeout; this is a safety net
 				// so HttpClient never waits its default 100 seconds.
-				client.Timeout = TimeSpan.FromSeconds(35);
+				client.Timeout = TimeSpan.FromSeconds(50);
 			});
 
 			// --- ViewModels ---
