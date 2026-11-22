@@ -3,45 +3,59 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     x:Class="Qcm_app.Views.ResultPage"
-    Title="Result">
+    Title="Result"
+    Shell.NavBarIsVisible="False">
 
-	<VerticalStackLayout
-        Padding="30"
-        Spacing="24"
+    <VerticalStackLayout
+        Padding="28"
+        Spacing="20"
         VerticalOptions="Center">
 
-		<Label
+        <Border StrokeShape="RoundRectangle 28"
+                BackgroundColor="{StaticResource PrimarySoft}"
+                WidthRequest="72" HeightRequest="72"
+                Padding="0"
+                HorizontalOptions="Center"
+                Stroke="Transparent">
+            <Label Text="🏆" FontSize="34" HorizontalOptions="Center" VerticalOptions="Center" />
+        </Border>
+
+        <Label
             Text="Quiz Finished!"
-            FontSize="32"
-            FontAttributes="Bold"
-            HorizontalOptions="Center" />
+            Style="{StaticResource Headline}" />
 
-		<Label
-            Text="{Binding ScoreText}"
-            FontSize="42"
-            FontAttributes="Bold"
-            HorizontalOptions="Center" />
+        <Border Style="{StaticResource Card}" HorizontalOptions="Fill">
+            <VerticalStackLayout Spacing="6" HorizontalOptions="Center">
+                <Label
+                    Text="{Binding ScoreText}"
+                    Style="{StaticResource StatNumber}"
+                    FontSize="46" />
 
-		<Label
-            Text="{Binding PercentageText}"
-            FontSize="28"
-            HorizontalOptions="Center" />
+                <Label
+                    Text="{Binding PercentageText}"
+                    Style="{StaticResource Subtitle}"
+                    FontSize="20" />
+            </VerticalStackLayout>
+        </Border>
 
-		<Label
+        <Label
             Text="{Binding Message}"
-            FontSize="22"
-            HorizontalOptions="Center" />
+            Style="{StaticResource SubHeadline}"
+            FontSize="20" />
 
-		<Button
-            Text="Replay"
-            Command="{Binding ReplayCommand}"
-            HeightRequest="55" />
+        <VerticalStackLayout Spacing="12" Margin="0,12,0,0">
+            <Button
+                Text="Replay"
+                Command="{Binding ReplayCommand}"
+                HeightRequest="56" />
 
-		<Button
-            Text="Back to Home"
-            Command="{Binding GoHomeCommand}"
-            HeightRequest="55" />
+            <Button
+                Text="Back to Home"
+                Style="{StaticResource SecondaryButton}"
+                Command="{Binding GoHomeCommand}"
+                HeightRequest="52" />
+        </VerticalStackLayout>
 
-	</VerticalStackLayout>
+    </VerticalStackLayout>
 
 </ContentPage>

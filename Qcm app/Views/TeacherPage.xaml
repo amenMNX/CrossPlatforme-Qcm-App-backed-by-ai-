@@ -7,88 +7,114 @@
     x:DataType="viewModels:TeacherViewModel"
     Title="Teacher">
 
-	<ScrollView>
-		<VerticalStackLayout Padding="24" Spacing="12">
-			<Label
-                Text="Add a question"
-                FontSize="26"
-                FontAttributes="Bold" />
+    <ScrollView>
+        <VerticalStackLayout Padding="24,20,24,32" Spacing="20">
 
-			<Label Text="Question" />
-			<Editor
-                Text="{Binding QuestionText}"
-                Placeholder="Enter the question"
-                AutoSize="TextChanges"
-                MinimumHeightRequest="80" />
+            <VerticalStackLayout Spacing="4">
+                <Label Text="TEACHER TOOLS" Style="{StaticResource Eyebrow}" />
+                <Label Text="Add a question" Style="{StaticResource CardTitle}" FontSize="22" />
+            </VerticalStackLayout>
 
-			<Label Text="Choices" />
-			<Entry Text="{Binding Choice1}" Placeholder="Choice 1" />
-			<Entry Text="{Binding Choice2}" Placeholder="Choice 2" />
-			<Entry Text="{Binding Choice3}" Placeholder="Choice 3" />
-			<Entry Text="{Binding Choice4}" Placeholder="Choice 4" />
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="12">
 
-			<Label Text="Correct choice" />
-			<Picker
-                Title="Select the correct choice"
-                ItemsSource="{Binding CorrectChoiceOptions}"
-                SelectedIndex="{Binding CorrectChoiceIndex}" />
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Question" Style="{StaticResource Caption}" FontAttributes="Bold" />
+                        <Editor
+                            Text="{Binding QuestionText}"
+                            Placeholder="Enter the question"
+                            AutoSize="TextChanges"
+                            MinimumHeightRequest="80" />
+                    </VerticalStackLayout>
 
-			<Label Text="Category" />
-			<Entry Text="{Binding Category}" Placeholder="e.g. Science" />
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Choices" Style="{StaticResource Caption}" FontAttributes="Bold" />
+                        <Entry Text="{Binding Choice1}" Placeholder="Choice 1" />
+                        <Entry Text="{Binding Choice2}" Placeholder="Choice 2" />
+                        <Entry Text="{Binding Choice3}" Placeholder="Choice 3" />
+                        <Entry Text="{Binding Choice4}" Placeholder="Choice 4" />
+                    </VerticalStackLayout>
 
-			<Label Text="Difficulty" />
-			<Picker
-                ItemsSource="{Binding DifficultyOptions}"
-                SelectedItem="{Binding SelectedDifficulty}" />
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Correct choice" Style="{StaticResource Caption}" FontAttributes="Bold" />
+                        <Picker
+                            Title="Select the correct choice"
+                            ItemsSource="{Binding CorrectChoiceOptions}"
+                            SelectedIndex="{Binding CorrectChoiceIndex}" />
+                    </VerticalStackLayout>
 
-			<Label
-                Text="{Binding StatusMessage}"
-                HorizontalTextAlignment="Center" />
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                        <VerticalStackLayout Grid.Column="0" Spacing="4">
+                            <Label Text="Category" Style="{StaticResource Caption}" FontAttributes="Bold" />
+                            <Entry Text="{Binding Category}" Placeholder="e.g. Science" />
+                        </VerticalStackLayout>
 
-			<ActivityIndicator
-                IsRunning="{Binding IsSaving}"
-                IsVisible="{Binding IsSaving}" />
+                        <VerticalStackLayout Grid.Column="1" Spacing="4">
+                            <Label Text="Difficulty" Style="{StaticResource Caption}" FontAttributes="Bold" />
+                            <Picker
+                                ItemsSource="{Binding DifficultyOptions}"
+                                SelectedItem="{Binding SelectedDifficulty}" />
+                        </VerticalStackLayout>
+                    </Grid>
 
-			<Button
-                Text="Save question"
-                Command="{Binding SaveQuestionCommand}"
-                HeightRequest="50" />
+                    <Label
+                        Text="{Binding StatusMessage}"
+                        Style="{StaticResource Caption}"
+                        HorizontalTextAlignment="Center" />
 
-            <BoxView HeightRequest="1" Color="LightGray" Margin="0,12" />
+                    <ActivityIndicator
+                        IsRunning="{Binding IsSaving}"
+                        IsVisible="{Binding IsSaving}"
+                        Color="{StaticResource Primary}" />
 
-            <Label
-                Text="Generate questions with AI"
-                FontSize="22"
-                FontAttributes="Bold" />
+                    <Button
+                        Text="Save question"
+                        Command="{Binding SaveQuestionCommand}"
+                        HeightRequest="52" />
+                </VerticalStackLayout>
+            </Border>
 
-            <Entry
-                Text="{Binding AiTopic}"
-                Placeholder="Topic, e.g. astronomy" />
+            <VerticalStackLayout Spacing="4" Margin="0,8,0,0">
+                <Label Text="AUTOMATE" Style="{StaticResource Eyebrow}" />
+                <Label Text="Generate questions with AI" Style="{StaticResource CardTitle}" FontSize="22" />
+            </VerticalStackLayout>
 
-            <Entry
-                Text="{Binding AiQuestionCount}"
-                Placeholder="Number of questions (1–20)"
-                Keyboard="Numeric" />
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="12">
+                    <Entry
+                        Text="{Binding AiTopic}"
+                        Placeholder="Topic, e.g. astronomy" />
 
-            <Button
-                Text="Generate preview"
-                Command="{Binding GenerateAiQuestionsCommand}" />
+                    <Entry
+                        Text="{Binding AiQuestionCount}"
+                        Placeholder="Number of questions (1–20)"
+                        Keyboard="Numeric" />
 
-            <ActivityIndicator
-                IsRunning="{Binding IsGenerating}"
-                IsVisible="{Binding IsGenerating}" />
+                    <Button
+                        Text="Generate preview"
+                        Style="{StaticResource SecondaryButton}"
+                        Command="{Binding GenerateAiQuestionsCommand}" />
 
-            <Label
-                Text="{Binding AiStatusMessage}"
-                HorizontalTextAlignment="Center" />
+                    <ActivityIndicator
+                        IsRunning="{Binding IsGenerating}"
+                        IsVisible="{Binding IsGenerating}"
+                        Color="{StaticResource Primary}" />
+
+                    <Label
+                        Text="{Binding AiStatusMessage}"
+                        Style="{StaticResource Caption}"
+                        HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </Border>
 
             <VerticalStackLayout
                 BindableLayout.ItemsSource="{Binding AiPreviewQuestions}"
-                Spacing="12">
+                Spacing="14">
                 <BindableLayout.ItemTemplate>
                     <DataTemplate x:DataType="viewModels:TeacherQuestionDraft">
-                        <Border Padding="12" Stroke="LightGray">
-                            <VerticalStackLayout Spacing="8">
+                        <Border Style="{StaticResource Card}">
+                            <VerticalStackLayout Spacing="10">
+                                <Label Text="AI DRAFT" Style="{StaticResource Eyebrow}" />
                                 <Editor
                                     Text="{Binding Text}"
                                     Placeholder="Question"
@@ -116,6 +142,6 @@
                     </DataTemplate>
                 </BindableLayout.ItemTemplate>
             </VerticalStackLayout>
-		</VerticalStackLayout>
-	</ScrollView>
+        </VerticalStackLayout>
+    </ScrollView>
 </ContentPage>

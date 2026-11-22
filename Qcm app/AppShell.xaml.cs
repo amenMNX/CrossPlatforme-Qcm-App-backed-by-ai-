@@ -7,6 +7,9 @@ namespace Qcm_app
 		public AppShell()
 		{
 			InitializeComponent();
+		#if WINDOWS
+			Shell.SetForegroundColor(this, Microsoft.Maui.Graphics.Colors.White);
+		#endif
 			Routing.RegisterRoute("categories", typeof(CategoriesPage));
 			Routing.RegisterRoute("quiz", typeof(QuizPage));
 			Routing.RegisterRoute("result", typeof(ResultPage));

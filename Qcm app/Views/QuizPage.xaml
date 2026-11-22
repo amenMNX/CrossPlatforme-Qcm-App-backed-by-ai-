@@ -5,91 +5,98 @@
     xmlns:viewModels="clr-namespace:Qcm_app.ViewModels"
     x:Class="Qcm_app.Views.QuizPage"
     x:DataType="viewModels:QuizViewModel"
-    Title="Quiz"
-    BackgroundColor="#F7F5FC">
+    Title="Quiz">
 
     <ContentPage.Resources>
         <Style x:Key="QuizAnswerButton" TargetType="Button">
-            <Setter Property="BackgroundColor" Value="#FFFFFF" />
-            <Setter Property="TextColor" Value="#29233F" />
-            <Setter Property="BorderColor" Value="#DDD6F3" />
-            <Setter Property="BorderWidth" Value="1" />
+            <Setter Property="BackgroundColor" Value="{StaticResource CardBackground}" />
+            <Setter Property="TextColor" Value="{StaticResource InkStrong}" />
+            <Setter Property="BorderColor" Value="{StaticResource CardStroke}" />
+            <Setter Property="BorderWidth" Value="1.5" />
             <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="FontFamily" Value="OpenSansSemibold" />
             <Setter Property="FontSize" Value="16" />
-            <Setter Property="Padding" Value="16,10" />
+            <Setter Property="HorizontalOptions" Value="Fill" />
+            <Setter Property="Padding" Value="18,10" />
             <Setter Property="HeightRequest" Value="56" />
+            <Setter Property="Shadow">
+                <Shadow Brush="{StaticResource MidnightBlue}" Opacity="0.05" Radius="12" Offset="0,4" />
+            </Setter>
         </Style>
         <Style x:Key="QuizNextButton" TargetType="Button">
-            <Setter Property="BackgroundColor" Value="#512BD4" />
-            <Setter Property="TextColor" Value="White" />
+            <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
+            <Setter Property="TextColor" Value="{StaticResource White}" />
             <Setter Property="CornerRadius" Value="16" />
-            <Setter Property="FontAttributes" Value="Bold" />
+            <Setter Property="FontFamily" Value="OpenSansSemibold" />
             <Setter Property="FontSize" Value="16" />
             <Setter Property="HeightRequest" Value="54" />
         </Style>
     </ContentPage.Resources>
 
-	<Grid Padding="20">
+    <Grid Padding="22,20">
 
-		<VerticalStackLayout Spacing="16" VerticalOptions="Center"
-			IsVisible="{Binding IsQuizReady}">
+        <VerticalStackLayout Spacing="16" VerticalOptions="Center"
+            IsVisible="{Binding IsQuizReady}">
 
-			<Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
-				<VerticalStackLayout Spacing="2">
-                    <Label Text="{Binding QuizModeText}" FontSize="12" FontAttributes="Bold" TextColor="#512BD4" />
-                    <Label Text="{Binding TopicText}" FontSize="22" FontAttributes="Bold" TextColor="#29233F" />
-                    <Label Text="{Binding DifficultyText}" FontSize="13" TextColor="#6B647A" />
-				</VerticalStackLayout>
-				<Label Grid.Column="1" Text="{Binding ScoreText}" FontSize="15" FontAttributes="Bold" TextColor="#512BD4" VerticalOptions="Center" />
-			</Grid>
+            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                <VerticalStackLayout Spacing="2">
+                    <Label Text="QUIZ" Style="{StaticResource Eyebrow}" />
+                    <Label Text="Challenge yourself" Style="{StaticResource CardTitle}" FontSize="22" />
+                </VerticalStackLayout>
+                <Border Grid.Column="1"
+                        BackgroundColor="{StaticResource PrimarySoft}"
+                        StrokeShape="RoundRectangle 12"
+                        Stroke="Transparent"
+                        Padding="12,6"
+                        VerticalOptions="Center">
+                    <Label Text="{Binding ScoreText}" FontSize="14" FontFamily="OpenSansSemibold" TextColor="{StaticResource Primary}" />
+                </Border>
+            </Grid>
 
-			<ProgressBar Progress="{Binding Progress}" ProgressColor="#512BD4" HeightRequest="8" />
-            <Label Text="{Binding SourceMessage}" IsVisible="{Binding HasSourceMessage}" FontSize="13" TextColor="#8A5A00" HorizontalTextAlignment="Center" />
+            <ProgressBar Progress="{Binding Progress}" HeightRequest="8" />
 
-			<Label
+            <Label
                 Text="{Binding ProgressText}"
-				FontSize="14"
-				FontAttributes="Bold"
-				TextColor="{StaticResource Gray500}"
+                Style="{StaticResource Caption}"
+                FontAttributes="Bold"
                 HorizontalOptions="Center" />
-			<Frame Padding="22" CornerRadius="20" HasShadow="False" BackgroundColor="White" BorderColor="#E4DFF2">
-				<Label Text="{Binding CurrentQuestion.Text}" FontSize="24" FontAttributes="Bold" TextColor="#29233F" HorizontalTextAlignment="Center" />
-			</Frame>
 
-			<CollectionView
+            <Border Style="{StaticResource Card}" Padding="22">
+                <Label Text="{Binding CurrentQuestion.Text}" FontSize="22" FontFamily="OpenSansSemibold" TextColor="{StaticResource InkStrong}" HorizontalTextAlignment="Center" />
+            </Border>
+
+            <CollectionView
                 ItemsSource="{Binding CurrentQuestion.Choices}"
                 SelectionMode="None">
 
-				<CollectionView.ItemTemplate>
+                <CollectionView.ItemTemplate>
                     <DataTemplate x:DataType="x:String">
-						<Button
+                        <Button
                             x:DataType="{x:Null}"
                             Text="{Binding .}"
                             Style="{StaticResource QuizAnswerButton}"
                             IsEnabled="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.IsAnswered, Converter={StaticResource InvertedBoolConverter}}"
                             Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.SelectAnswerCommand}"
                             CommandParameter="{Binding .}"
-                            Margin="0,5"
-                            HeightRequest="55" />
-					</DataTemplate>
-				</CollectionView.ItemTemplate>
+                            Margin="0,5" />
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
 
-			</CollectionView>
+            </CollectionView>
 
-			<Frame Padding="14" CornerRadius="14" HasShadow="False" BackgroundColor="#EFEAFF" IsVisible="{Binding IsAnswered}">
-                <VerticalStackLayout Spacing="6">
-                    <Label Text="{Binding FeedbackTitle}" FontSize="16" FontAttributes="Bold" TextColor="{Binding FeedbackColor}" HorizontalTextAlignment="Center" />
-                    <Label Text="{Binding FeedbackMessage}" FontSize="15" TextColor="#29233F" HorizontalTextAlignment="Center" />
-                </VerticalStackLayout>
-			</Frame>
+            <Border Padding="14" StrokeShape="RoundRectangle 14" Stroke="Transparent"
+                    BackgroundColor="{StaticResource PrimarySoft}"
+                    IsVisible="{Binding IsAnswered}">
+                <Label Text="{Binding FeedbackMessage}" FontSize="16" FontFamily="OpenSansSemibold" TextColor="{StaticResource Primary}" HorizontalTextAlignment="Center" />
+            </Border>
 
-			<Button Text="Next question"
-				Style="{StaticResource QuizNextButton}"
-				Command="{Binding NextCommand}"
-				IsVisible="{Binding IsAnswered}"
-				Margin="0,4,0,0" />
+            <Button Text="Next question"
+                Style="{StaticResource QuizNextButton}"
+                Command="{Binding NextCommand}"
+                IsVisible="{Binding IsAnswered}"
+                Margin="0,4,0,0" />
 
-		</VerticalStackLayout>
+        </VerticalStackLayout>
 
         <VerticalStackLayout
             Spacing="16"
@@ -98,30 +105,27 @@
             IsVisible="{Binding HasGenerationError}">
             <Label
                 Text="Could not load questions"
-                FontSize="22"
-                FontAttributes="Bold"
-                HorizontalTextAlignment="Center" />
+                Style="{StaticResource SubHeadline}"
+                FontSize="20" />
             <Label
                 Text="{Binding FeedbackMessage}"
-                FontSize="16"
-                HorizontalTextAlignment="Center" />
+                Style="{StaticResource Subtitle}" />
             <Button
                 Text="Try again"
                 Command="{Binding RetryCommand}" />
         </VerticalStackLayout>
 
-		<VerticalStackLayout
+        <VerticalStackLayout
             Spacing="16"
             VerticalOptions="Center"
             HorizontalOptions="Center"
             IsVisible="{Binding IsLoading}">
-			<ActivityIndicator IsRunning="{Binding IsLoading}" HeightRequest="48" WidthRequest="48" />
-			<Label
+            <ActivityIndicator IsRunning="{Binding IsLoading}" HeightRequest="48" WidthRequest="48" Color="{StaticResource Primary}" />
+            <Label
                 Text="{Binding LoadingMessage}"
-                FontSize="16"
-                HorizontalTextAlignment="Center" />
-		</VerticalStackLayout>
+                Style="{StaticResource Subtitle}" />
+        </VerticalStackLayout>
 
-	</Grid>
+    </Grid>
 
 </ContentPage>

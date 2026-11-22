@@ -5,53 +5,62 @@
     xmlns:viewModels="clr-namespace:Qcm_app.ViewModels"
     x:Class="Qcm_app.MainPage"
     x:DataType="viewModels:HomeViewModel"
-    Title="Quiz App">
+    Title="Quiz App"
+    Shell.NavBarIsVisible="False">
 
-	<ScrollView>
-		<VerticalStackLayout
-            Padding="30"
-            Spacing="20"
+    <ScrollView>
+        <VerticalStackLayout
+            Padding="28,48,28,32"
+            Spacing="28"
             VerticalOptions="Center">
 
-			<Label
-                Text="Quiz App"
-                FontSize="36"
-                FontAttributes="Bold"
-                HorizontalOptions="Center" />
+            <VerticalStackLayout Spacing="10">
+                <Border StrokeShape="RoundRectangle 28"
+                        BackgroundColor="{StaticResource PrimarySoft}"
+                        WidthRequest="64" HeightRequest="64"
+                        Padding="0"
+                        HorizontalOptions="Center"
+                        Stroke="Transparent">
+                    <Label Text="🧠" FontSize="30" HorizontalOptions="Center" VerticalOptions="Center" />
+                </Border>
 
-			<Label
-                Text="Test your knowledge with fun quizzes."
-                FontSize="18"
-                HorizontalTextAlignment="Center" />
+                <Label Text="Quiz App" Style="{StaticResource Headline}" />
+                <Label
+                    Text="Test your knowledge with fun, fast quizzes."
+                    Style="{StaticResource Subtitle}" />
+            </VerticalStackLayout>
 
-			<Button
-                Text="Start Quiz"
-                Command="{Binding StartQuizCommand}"
-                HeightRequest="55"
-                FontSize="18" />
+            <VerticalStackLayout Spacing="14">
+                <Button
+                    Text="▶  Start Quiz"
+                    Command="{Binding StartQuizCommand}"
+                    HeightRequest="58"
+                    FontSize="18" />
 
-			<Button
-                Text="History"
-                Command="{Binding ViewHistoryCommand}"
-                HeightRequest="50"
-                FontSize="16" />
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
+                    <Button
+                        Grid.Column="0"
+                        Text="History"
+                        Style="{StaticResource SecondaryButton}"
+                        Command="{Binding ViewHistoryCommand}"
+                        HeightRequest="52" />
 
-			<Button
-                Text="Stats"
-                Command="{Binding ViewStatsCommand}"
-                HeightRequest="50"
-                FontSize="16" />
+                    <Button
+                        Grid.Column="1"
+                        Text="Stats"
+                        Style="{StaticResource SecondaryButton}"
+                        Command="{Binding ViewStatsCommand}"
+                        HeightRequest="52" />
+                </Grid>
 
-            <Button
-                Text="Teacher mode"
-                Command="{Binding OpenTeacherModeCommand}"
-                FontSize="12"
-                HeightRequest="36"
-                BackgroundColor="Transparent"
-                TextColor="Gray"
-                HorizontalOptions="Center" />
+                <Button
+                    Text="Teacher mode"
+                    Command="{Binding OpenTeacherModeCommand}"
+                    Style="{StaticResource GhostButton}"
+                    HorizontalOptions="Center" />
+            </VerticalStackLayout>
 
-		</VerticalStackLayout>
-	</ScrollView>
+        </VerticalStackLayout>
+    </ScrollView>
 
 </ContentPage>

@@ -459,22 +459,14 @@ public class AiQuestionService : IQuestionProvider
 			if (raw.Choices is null || raw.Choices.Count != 4)
 				continue;
 
-			if (string.IsNullOrWhiteSpace(raw.Text) ||
-				raw.Choices.Any(string.IsNullOrWhiteSpace) ||
-				raw.Choices.Select(choice => choice.Trim())
-					.Distinct(StringComparer.OrdinalIgnoreCase).Count() != 4)
-			{
-				continue;
-			}
-
 			if (raw.CorrectIndex < 0 || raw.CorrectIndex >= raw.Choices.Count)
 				continue;
 
 			questions.Add(new Question
 			{
 				Id = $"ai-{Guid.NewGuid():N}",
-				Text = raw.Text.Trim(),
-				Choices = raw.Choices.Select(choice => choice.Trim()).ToList(),
+				Text = raw.Text ?? string.Empty,
+				Choices = raw.Choices,
 				CorrectIndex = raw.CorrectIndex,
 				Category = topic,
 				Difficulty = difficulty ?? Models.Difficulty.Medium,

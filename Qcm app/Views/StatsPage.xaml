@@ -7,34 +7,44 @@
     x:DataType="viewModels:StatsViewModel"
     Title="Stats">
 
-	<VerticalStackLayout Padding="30" Spacing="24" VerticalOptions="Center">
+    <VerticalStackLayout Padding="24,20" Spacing="16" VerticalOptions="Center">
 
-		<Label
-            Text="No stats yet. Play a few quizzes first!"
-            FontSize="16"
+        <VerticalStackLayout
+            Spacing="10"
             HorizontalOptions="Center"
-            IsVisible="{Binding HasNoData}" />
+            IsVisible="{Binding HasNoData}">
+            <Label Text="📊" FontSize="40" HorizontalOptions="Center" />
+            <Label
+                Text="No stats yet. Play a few quizzes first!"
+                Style="{StaticResource Subtitle}" />
+        </VerticalStackLayout>
 
-		<Grid IsVisible="{Binding HasNoData, Converter={StaticResource InvertedBoolConverter}}"
-              RowDefinitions="Auto,Auto,Auto" RowSpacing="20">
+        <VerticalStackLayout Spacing="14"
+            IsVisible="{Binding HasNoData, Converter={StaticResource InvertedBoolConverter}}">
 
-			<VerticalStackLayout Grid.Row="0" HorizontalOptions="Center">
-				<Label Text="Games played" FontSize="14" TextColor="Gray" HorizontalOptions="Center" />
-				<Label Text="{Binding GamesPlayed}" FontSize="32" FontAttributes="Bold" HorizontalOptions="Center" />
-			</VerticalStackLayout>
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="2" HorizontalOptions="Center">
+                    <Label Text="Games played" Style="{StaticResource Caption}" HorizontalOptions="Center" />
+                    <Label Text="{Binding GamesPlayed}" Style="{StaticResource StatNumber}" />
+                </VerticalStackLayout>
+            </Border>
 
-			<VerticalStackLayout Grid.Row="1" HorizontalOptions="Center">
-				<Label Text="Best score" FontSize="14" TextColor="Gray" HorizontalOptions="Center" />
-				<Label Text="{Binding BestScoreText}" FontSize="32" FontAttributes="Bold" HorizontalOptions="Center" />
-			</VerticalStackLayout>
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="2" HorizontalOptions="Center">
+                    <Label Text="Best score" Style="{StaticResource Caption}" HorizontalOptions="Center" />
+                    <Label Text="{Binding BestScoreText}" Style="{StaticResource StatNumber}" />
+                </VerticalStackLayout>
+            </Border>
 
-			<VerticalStackLayout Grid.Row="2" HorizontalOptions="Center">
-				<Label Text="Average score" FontSize="14" TextColor="Gray" HorizontalOptions="Center" />
-				<Label Text="{Binding AverageScoreText}" FontSize="32" FontAttributes="Bold" HorizontalOptions="Center" />
-			</VerticalStackLayout>
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="2" HorizontalOptions="Center">
+                    <Label Text="Average score" Style="{StaticResource Caption}" HorizontalOptions="Center" />
+                    <Label Text="{Binding AverageScoreText}" Style="{StaticResource StatNumber}" />
+                </VerticalStackLayout>
+            </Border>
 
-		</Grid>
+        </VerticalStackLayout>
 
-	</VerticalStackLayout>
+    </VerticalStackLayout>
 
 </ContentPage>

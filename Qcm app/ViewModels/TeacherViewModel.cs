@@ -120,7 +120,6 @@ public partial class TeacherViewModel : ObservableObject
 		if (string.IsNullOrWhiteSpace(draft.Text) ||
 			string.IsNullOrWhiteSpace(draft.Category) ||
 			choices.Any(string.IsNullOrWhiteSpace) ||
-			!HasDistinctChoices(choices) ||
 			draft.CorrectIndex is < 0 or > 3 ||
 			!draft.DifficultyOptions.Contains(draft.Difficulty))
 		{
@@ -152,10 +151,9 @@ public partial class TeacherViewModel : ObservableObject
 
 		if (string.IsNullOrWhiteSpace(QuestionText) ||
 			string.IsNullOrWhiteSpace(Category) ||
-			choices.Any(string.IsNullOrWhiteSpace) ||
-			!HasDistinctChoices(choices))
+			choices.Any(string.IsNullOrWhiteSpace))
 		{
-			StatusMessage = "Fill in the question, all four choices, and category. Choices must be different.";
+			StatusMessage = "Fill in the question, all four choices, and category.";
 			return;
 		}
 
@@ -199,8 +197,4 @@ public partial class TeacherViewModel : ObservableObject
 			IsSaving = false;
 		}
 	}
-
-	private static bool HasDistinctChoices(IEnumerable<string> choices) =>
-		choices.Select(choice => choice.Trim())
-			.Distinct(StringComparer.OrdinalIgnoreCase).Count() == 4;
 }

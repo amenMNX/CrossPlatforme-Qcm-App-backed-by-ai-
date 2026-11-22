@@ -5,36 +5,51 @@
 	xmlns:viewModels="clr-namespace:Qcm_app.ViewModels"
 	x:Class="Qcm_app.Views.TeacherLoginPage"
 	x:DataType="viewModels:TeacherLoginViewModel"
-	Title="Teacher access">
+	Title="Teacher access"
+	Shell.NavBarIsVisible="False">
 
-	<VerticalStackLayout Padding="24" Spacing="16" VerticalOptions="Center">
+	<VerticalStackLayout Padding="28" Spacing="18" VerticalOptions="Center">
+
+		<Border StrokeShape="RoundRectangle 28"
+				BackgroundColor="{StaticResource PrimarySoft}"
+				WidthRequest="64" HeightRequest="64"
+				Padding="0"
+				HorizontalOptions="Center"
+				Stroke="Transparent">
+			<Label Text="🔒" FontSize="28" HorizontalOptions="Center" VerticalOptions="Center" />
+		</Border>
+
 		<Label
 			Text="Teacher access"
-			FontSize="28"
-			FontAttributes="Bold"
-			HorizontalOptions="Center" />
+			Style="{StaticResource Headline}"
+			FontSize="26" />
 
-		<Entry
-			Placeholder="Password"
-			IsPassword="True"
-			Text="{Binding Password}"
-			ReturnType="Go"
-			ReturnCommand="{Binding LoginCommand}" />
+		<Border Style="{StaticResource Card}">
+			<VerticalStackLayout Spacing="10">
+				<Entry
+					Placeholder="Password"
+					IsPassword="True"
+					Text="{Binding Password}"
+					ReturnType="Go"
+					ReturnCommand="{Binding LoginCommand}" />
 
-		<Label
-			Text="{Binding ErrorMessage}"
-			TextColor="Red"
-			HorizontalTextAlignment="Center" />
+				<Label
+					Text="{Binding ErrorMessage}"
+					TextColor="{StaticResource Danger}"
+					FontSize="13"
+					HorizontalTextAlignment="Center" />
+			</VerticalStackLayout>
+		</Border>
 
 		<Button
 			Text="Continue"
 			Command="{Binding LoginCommand}"
-			HeightRequest="50" />
+			HeightRequest="52" />
 
 		<Button
 			Text="Cancel"
 			Command="{Binding CancelCommand}"
-			BackgroundColor="Transparent"
-			TextColor="Gray" />
+			Style="{StaticResource GhostButton}"
+			HorizontalOptions="Center" />
 	</VerticalStackLayout>
 </ContentPage>

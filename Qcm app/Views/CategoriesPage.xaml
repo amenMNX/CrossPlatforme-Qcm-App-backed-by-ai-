@@ -7,46 +7,58 @@
     x:DataType="viewModels:CategoriesViewModel"
     Title="Categories">
 
-	<ScrollView>
-		<VerticalStackLayout Padding="24" Spacing="18">
+    <ScrollView>
+        <VerticalStackLayout Padding="24,20,24,32" Spacing="20">
 
-			<Label
-                Text="Category"
-                FontSize="16"
-                FontAttributes="Bold" />
-			<Picker
-                ItemsSource="{Binding Categories}"
-                SelectedItem="{Binding SelectedCategory}" />
+            <VerticalStackLayout Spacing="4">
+                <Label Text="SET UP YOUR QUIZ" Style="{StaticResource Eyebrow}" />
+                <Label Text="Pick a category and difficulty" Style="{StaticResource CardTitle}" FontSize="22" />
+            </VerticalStackLayout>
 
-			<Label
-                Text="Difficulty"
-                FontSize="16"
-                FontAttributes="Bold" />
-			<Picker
-                ItemsSource="{Binding DifficultyOptions}"
-                SelectedItem="{Binding SelectedDifficulty}" />
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="16">
 
-			<HorizontalStackLayout Spacing="12" Margin="0,10,0,0">
-				<Switch IsToggled="{Binding UseAiGeneration}" />
-				<VerticalStackLayout>
-					<Label
-                        Text="Generate questions with AI"
-                        FontAttributes="Bold" />
-					<Label
-                        Text="Uses Gemini to create fresh questions. Falls back to the local bank if offline."
-                        FontSize="12"
-                        TextColor="Gray" />
-				</VerticalStackLayout>
-			</HorizontalStackLayout>
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Category" Style="{StaticResource Caption}" FontAttributes="Bold" />
+                        <Picker
+                            ItemsSource="{Binding Categories}"
+                            SelectedItem="{Binding SelectedCategory}" />
+                    </VerticalStackLayout>
 
-			<Button
+                    <BoxView HeightRequest="1" Color="{StaticResource CardStroke}" />
+
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Difficulty" Style="{StaticResource Caption}" FontAttributes="Bold" />
+                        <Picker
+                            ItemsSource="{Binding DifficultyOptions}"
+                            SelectedItem="{Binding SelectedDifficulty}" />
+                    </VerticalStackLayout>
+
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <HorizontalStackLayout Spacing="14">
+                    <Switch IsToggled="{Binding UseAiGeneration}" VerticalOptions="Start" />
+                    <VerticalStackLayout Spacing="2" HorizontalOptions="FillAndExpand">
+                        <Label
+                            Text="Generate questions with AI"
+                            Style="{StaticResource CardTitle}" />
+                        <Label
+                            Text="Uses Gemini to create fresh questions. Falls back to the local bank if offline."
+                            Style="{StaticResource Caption}" />
+                    </VerticalStackLayout>
+                </HorizontalStackLayout>
+            </Border>
+
+            <Button
                 Text="Start Quiz"
                 Command="{Binding StartCommand}"
-                HeightRequest="55"
+                HeightRequest="56"
                 FontSize="18"
-                Margin="0,20,0,0" />
+                Margin="0,8,0,0" />
 
-		</VerticalStackLayout>
-	</ScrollView>
+        </VerticalStackLayout>
+    </ScrollView>
 
 </ContentPage>

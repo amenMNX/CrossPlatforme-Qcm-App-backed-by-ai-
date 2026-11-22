@@ -8,49 +8,69 @@
     x:DataType="viewModels:HistoryViewModel"
     Title="History">
 
-	<Grid Padding="24">
+    <Grid Padding="24,20">
 
-		<Label
-            Text="No games played yet. Play a quiz to see it here!"
-            FontSize="16"
-            HorizontalOptions="Center"
+        <VerticalStackLayout
             VerticalOptions="Center"
-            IsVisible="{Binding IsEmpty}" />
+            HorizontalOptions="Center"
+            Spacing="10"
+            IsVisible="{Binding IsEmpty}">
+            <Label Text="📭" FontSize="40" HorizontalOptions="Center" />
+            <Label
+                Text="No games played yet"
+                Style="{StaticResource CardTitle}"
+                HorizontalOptions="Center" />
+            <Label
+                Text="Play a quiz to see it here!"
+                Style="{StaticResource Subtitle}" />
+        </VerticalStackLayout>
 
-		<CollectionView
+        <CollectionView
             ItemsSource="{Binding Sessions}"
             IsVisible="{Binding IsEmpty, Converter={StaticResource InvertedBoolConverter}}">
-			<CollectionView.ItemTemplate>
-				<DataTemplate x:DataType="data:GameSession">
-					<Grid Padding="0,10" ColumnDefinitions="*,Auto">
-						<VerticalStackLayout Grid.Column="0">
-							<Label Text="{Binding Category}" FontAttributes="Bold" FontSize="16" />
-							<Label FontSize="13" TextColor="Gray">
-								<Label.Text>
-									<MultiBinding StringFormat="{}{0:g} · {1}">
-										<Binding Path="Date" />
-										<Binding Path="Difficulty" />
-									</MultiBinding>
-								</Label.Text>
-							</Label>
-						</VerticalStackLayout>
-						<Label
-                            Grid.Column="1"
-                            FontSize="18"
-                            FontAttributes="Bold"
-                            VerticalOptions="Center">
-							<Label.Text>
-								<MultiBinding StringFormat="{}{0}/{1}">
-									<Binding Path="Score" />
-									<Binding Path="TotalQuestions" />
-								</MultiBinding>
-							</Label.Text>
-						</Label>
-					</Grid>
-				</DataTemplate>
-			</CollectionView.ItemTemplate>
-		</CollectionView>
+            <CollectionView.ItemsLayout>
+                <LinearItemsLayout Orientation="Vertical" ItemSpacing="12" />
+            </CollectionView.ItemsLayout>
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="data:GameSession">
+                    <Border Style="{StaticResource Card}" Padding="16">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <VerticalStackLayout Grid.Column="0" Spacing="4">
+                                <Label Text="{Binding Category}" Style="{StaticResource CardTitle}" />
+                                <Label FontSize="13" TextColor="{StaticResource InkMuted}">
+                                    <Label.Text>
+                                        <MultiBinding StringFormat="{}{0:g} · {1}">
+                                            <Binding Path="Date" />
+                                            <Binding Path="Difficulty" />
+                                        </MultiBinding>
+                                    </Label.Text>
+                                </Label>
+                            </VerticalStackLayout>
+                            <Border Grid.Column="1"
+                                    BackgroundColor="{StaticResource PrimarySoft}"
+                                    StrokeShape="RoundRectangle 12"
+                                    Stroke="Transparent"
+                                    Padding="12,6"
+                                    VerticalOptions="Center">
+                                <Label
+                                    FontSize="16"
+                                    FontFamily="OpenSansSemibold"
+                                    TextColor="{StaticResource Primary}"
+                                    VerticalOptions="Center">
+                                    <Label.Text>
+                                        <MultiBinding StringFormat="{}{0}/{1}">
+                                            <Binding Path="Score" />
+                                            <Binding Path="TotalQuestions" />
+                                        </MultiBinding>
+                                    </Label.Text>
+                                </Label>
+                            </Border>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
 
-	</Grid>
+    </Grid>
 
 </ContentPage>

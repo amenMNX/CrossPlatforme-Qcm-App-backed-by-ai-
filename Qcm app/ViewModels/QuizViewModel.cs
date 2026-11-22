@@ -16,7 +16,6 @@ public partial class QuizViewModel : ObservableObject, IQueryAttributable
 	private int currentIndex;
 	private bool isInitialized;
 	private DateTime quizStartedAt;
-	private bool usedAiGeneration;
 
 	private string category = QuizSettings.AllCategories;
 	private Difficulty? difficulty;
@@ -57,14 +56,6 @@ public partial class QuizViewModel : ObservableObject, IQueryAttributable
 
 	[ObservableProperty]
 	private string topicText = "General knowledge";
-
-	[ObservableProperty]
-	private string quizModeText = "LOCAL QUIZ";
-
-	[ObservableProperty]
-	private string sourceMessage = string.Empty;
-
-	public bool HasSourceMessage => !string.IsNullOrWhiteSpace(SourceMessage);
 
 	[ObservableProperty]
 	private string difficultyText = "Mixed difficulty";
@@ -125,9 +116,6 @@ public partial class QuizViewModel : ObservableObject, IQueryAttributable
 		HasGenerationError = false;
 		IsQuizReady = false;
 		FeedbackMessage = string.Empty;
-		SourceMessage = string.Empty;
-		OnPropertyChanged(nameof(HasSourceMessage));
-		usedAiGeneration = false;
 		LoadingMessage = useAiGeneration
 			? "Generating questions with AI..."
 			: "Loading questions...";
@@ -140,7 +128,6 @@ public partial class QuizViewModel : ObservableObject, IQueryAttributable
 			// request deadline. Local quizzes keep their original 10 questions.
 			int questionCount = useAiGeneration ? 4 : 10;
 			questions = await provider.GetQuestionsAsync(category, difficulty, questionCount);
-			usedAiGeneration = useAiGeneration && questions.Count > 0;
 		}
 		catch (OperationCanceledException)
 		{
@@ -148,43 +135,21 @@ public partial class QuizViewModel : ObservableObject, IQueryAttributable
 			ShowGenerationError();
 			return;
 		}
-		catch (Exception) when (useAiGeneration)
-		{
-			questions = new List<Question>();
-		}
 		catch (Exception)
 		{
-			FeedbackMessage = "Could not load questions. Please try again.";
+			FeedbackMessage = useAiGeneration
+			? "AI generation failed. Please try again."
+				: "Could not load questions. Please try again.";
 			ShowGenerationError();
 			return;
-		}
-
-		bool usedLocalFallback = false;
-		if (useAiGeneration && questions.Count == 0)
-		{
-			usedLocalFallback = true;
-			try
-			{
-				questions = await localQuestionService.GetQuestionsAsync(category, difficulty, 4);
-			}
-			catch (Exception)
-			{
-				questions = new List<Question>();
-			}
-
-			if (questions.Count > 0)
-			{
-				SourceMessage = "AI questions could not be generated. Using the local question bank instead.";
-				OnPropertyChanged(nameof(HasSourceMessage));
-			}
 		}
 
 		IsLoading = false;
 
 		if (questions.Count == 0)
 		{
-			FeedbackMessage = usedLocalFallback
-				? "No questions are available for this category and difficulty. Please try another selection."
+			FeedbackMessage = useAiGeneration
+				? aiQuestionService.LastGenerationIssue ?? "Could not generate questions. Please try again."
 				: "No questions available. Please try a different category.";
 			HasGenerationError = true;
 			return;
@@ -194,7 +159,6 @@ public partial class QuizViewModel : ObservableObject, IQueryAttributable
 		Score = 0;
 		TopicText = category == QuizSettings.AllCategories ? "General knowledge" : category;
 		DifficultyText = difficulty?.ToString() ?? "Mixed difficulty";
-		QuizModeText = usedAiGeneration ? "AI QUIZ" : "LOCAL QUIZ";
 		quizStartedAt = DateTime.UtcNow;
 		DisplayCurrentQuestion();
 		IsQuizReady = true;
@@ -284,7 +248,7 @@ public partial class QuizViewModel : ObservableObject, IQueryAttributable
 			Score = Score,
 			TotalQuestions = questions.Count,
 			DurationSeconds = durationSeconds,
-			wasAiGenerated = usedAiGeneration
+			wasAiGenerated = useAiGeneration
 		};
 
 		try

@@ -16,14 +16,6 @@ public partial class StatsPage : ContentPage
 	protected override async void OnAppearing()
 	{
 		base.OnAppearing();
-		try
-		{
-			await viewModel.InitializeAsync();
-		}
-		catch (Exception exception)
-		{
-			System.Diagnostics.Debug.WriteLine(exception);
-			await DisplayAlert("Loading error", "Could not load quiz statistics.", "OK");
-		}
+		await viewModel.InitializeAsync();
 	}
 }

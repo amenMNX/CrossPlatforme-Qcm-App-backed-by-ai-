@@ -3,20 +3,35 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
 
-    <!-- Note: For Android please see also Platforms\Android\Resources\values\colors.xml -->
-
-    <Color x:Key="Primary">#512BD4</Color>
-    <Color x:Key="PrimaryDark">#ac99ea</Color>
+    <!-- Brand -->
+    <Color x:Key="Primary">#5B3DF5</Color>
+    <Color x:Key="PrimaryDark">#4529D6</Color>
     <Color x:Key="PrimaryDarkText">#242424</Color>
+    <Color x:Key="PrimarySoft">#EEE9FE</Color>
     <Color x:Key="Secondary">#DFD8F7</Color>
     <Color x:Key="SecondaryDarkText">#9880e5</Color>
     <Color x:Key="Tertiary">#2B0B98</Color>
 
+    <!-- Accent / semantic -->
+    <Color x:Key="Accent">#FF7A59</Color>
+    <Color x:Key="Success">#1FAE6E</Color>
+    <Color x:Key="SuccessSoft">#E4F7EE</Color>
+    <Color x:Key="Danger">#E24C4B</Color>
+    <Color x:Key="DangerSoft">#FDEAEA</Color>
+    <Color x:Key="Warning">#F5A623</Color>
+
+    <!-- Neutrals / text -->
     <Color x:Key="White">White</Color>
     <Color x:Key="Black">Black</Color>
     <Color x:Key="Magenta">#D600AA</Color>
-    <Color x:Key="MidnightBlue">#190649</Color>
+    <Color x:Key="MidnightBlue">#1E1A3C</Color>
     <Color x:Key="OffBlack">#1f1f1f</Color>
+
+    <Color x:Key="InkStrong">#1E1A3C</Color>
+    <Color x:Key="InkMuted">#6E6A82</Color>
+    <Color x:Key="PageBackground">#F6F4FC</Color>
+    <Color x:Key="CardBackground">#FFFFFF</Color>
+    <Color x:Key="CardStroke">#E7E2F7</Color>
 
     <Color x:Key="Gray100">#E1E1E1</Color>
     <Color x:Key="Gray200">#C8C8C8</Color>
